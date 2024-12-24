@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.95"
+softbuffer = "0.4.6"
 winit = "0.30.7"

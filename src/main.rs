@@ -1,61 +1,69 @@
-use anyhow::Result;
-use winit::application::ApplicationHandler;
-use winit::event::WindowEvent;
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
-use winit::window::{Window, WindowId};
+use std::num::NonZeroU32;
+use std::rc::Rc;
+use winit::event::{Event, WindowEvent};
+use winit::event_loop::{ControlFlow, EventLoop};
+use winit::window::Window;
 
-#[derive(Default)]
-struct App {
-    window: Option<Window>,
-}
+mod winit_app;
+mod game;
 
-impl ApplicationHandler for App {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        self.window = Some(
-            event_loop
-                .create_window(Window::default_attributes())
-                .unwrap(),
-        );
-    }
-
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
-        match event {
-            WindowEvent::CloseRequested => {
-                println!("The close button was pressed; stopping");
-                event_loop.exit();
-            }
-            WindowEvent::RedrawRequested => {
-                println!("Redraw req");
-                // Redraw the application.
-                //
-                // It's preferable for applications that do not render continuously to render in
-                // this event rather than in AboutToWait, since rendering in here allows
-                // the program to gracefully handle redraws requested by the OS.
-
-                // Draw.
-
-                // Queue a RedrawRequested event.
-                //
-                // You only need to call this if you've determined that you need to redraw in
-                // applications which do not always need to. Applications that redraw continuously
-                // can render here instead.
-                self.window.as_ref().unwrap().request_redraw();
-            }
-            _ => (),
-        }
-    }
-}
-
-fn main() -> Result<()> {
+fn main() {
     let event_loop = EventLoop::new().unwrap();
 
-    // ControlFlow::Poll continuously runs the event loop, even if the OS hasn't
-    // dispatched any events. This is ideal for games and similar applications.
-    event_loop.set_control_flow(ControlFlow::Poll);
+    let mut app = winit_app::WinitAppBuilder::with_init(
+        |elwt| {
+            let window = {
+                let window = elwt.create_window(Window::default_attributes());
+                Rc::new(window.unwrap())
+            };
+            let context = softbuffer::Context::new(window.clone()).unwrap();
 
-    let mut app = App::default();
-    // let win = event_loop.create_window(Window::default_attributes())?;
-    event_loop.run_app(&mut app)?;
+            (window, context)
+        },
+        |_elwt, (window, context)| softbuffer::Surface::new(context, window.clone()).unwrap(),
+    )
+    .with_event_handler(|(window, _context), surface, event, elwt| {
+        elwt.set_control_flow(ControlFlow::Wait);
 
-    Ok(())
+        match event {
+            Event::WindowEvent { window_id, event: WindowEvent::RedrawRequested } if window_id == window.id() => {
+                let Some(surface) = surface else {
+                    eprintln!("RedrawRequested fired before Resumed or after Suspended");
+                    return;
+                };
+                let (width, height) = {
+                    let size = window.inner_size();
+                    (size.width, size.height)
+                };
+                surface
+                    .resize(
+                        NonZeroU32::new(width).unwrap(),
+                        NonZeroU32::new(height).unwrap(),
+                    )
+                    .unwrap();
+
+                let mut buffer = surface.buffer_mut().unwrap();
+                for index in 0..(width * height) {
+                    let y = index / width;
+                    let x = index % width;
+                    let red = x % 255;
+                    let green = y % 255;
+                    let blue = (x * y) % 255;
+
+                    buffer[index as usize] = blue | (green << 8) | (red << 16);
+                }
+
+                buffer.present().unwrap();
+            }
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                window_id,
+            } if window_id == window.id() => {
+                elwt.exit();
+            }
+            _ => {}
+        }
+    });
+
+    event_loop.run_app(&mut app).unwrap();
 }
