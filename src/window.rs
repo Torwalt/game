@@ -63,12 +63,33 @@ impl ApplicationHandler for StateApplication {
                     };
                     state.resize(size)
                 }
+                WindowEvent::CursorMoved { .. } => {
+                    let state = match &mut self.state {
+                        Some(state) => state,
+                        None => return,
+                    };
+                    state.input(&event)
+                }
                 WindowEvent::RedrawRequested => {
                     let state = match &mut self.state {
                         Some(state) => state,
                         None => return,
                     };
-                    state.render().unwrap();
+                    state.window().request_redraw();
+
+                    match state.render() {
+                        Ok(_) => {}
+                        Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                            state.resize(state.size())
+                        }
+                        Err(wgpu::SurfaceError::OutOfMemory) => {
+                            log::error!("OutOfMemory");
+                            event_loop.exit()
+                        }
+                        Err(wgpu::SurfaceError::Timeout) => {
+                            log::warn!("Surface timeout")
+                        }
+                    };
                 }
                 _ => {}
             }
