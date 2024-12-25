@@ -1,33 +1,28 @@
-use std::sync::Arc;
-
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowId};
 
+use crate::graphics::State;
+
 pub struct StateApplication {
-    window: Option<Arc<Window>>,
+    state: Option<State>,
 }
 
 impl StateApplication {
     pub fn new() -> Self {
-        Self { window: None }
-    }
-
-    pub fn window(&self) -> Arc<Window> {
-        self.window.clone().unwrap()
+        Self { state: None }
     }
 }
 
 impl ApplicationHandler for StateApplication {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = {
-            let window = event_loop
+            event_loop
                 .create_window(Window::default_attributes().with_title("Hello!"))
-                .unwrap();
-            Arc::new(window)
+                .unwrap()
         };
-        self.window = Some(window)
+        self.state = Some(State::new(window));
     }
 
     fn window_event(
@@ -36,7 +31,10 @@ impl ApplicationHandler for StateApplication {
         window_id: WindowId,
         event: WindowEvent,
     ) {
-        let window = &self.window.as_mut().unwrap();
+        let window = match &self.state {
+            Some(state) => state.window(),
+            None => return,
+        };
 
         if window.id() == window_id {
             match event {
@@ -44,14 +42,20 @@ impl ApplicationHandler for StateApplication {
                     event_loop.exit();
                 }
                 WindowEvent::Resized(_) => {}
-                WindowEvent::RedrawRequested => {}
+                WindowEvent::RedrawRequested => {
+                    let state = match &mut self.state {
+                        Some(state) => state,
+                        None => return,
+                    };
+                    state.render().unwrap();
+                }
                 _ => {}
             }
         }
     }
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        let window = &self.window.as_mut().unwrap();
+        let window = self.state.as_ref().unwrap().window();
         window.request_redraw();
     }
 }

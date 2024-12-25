@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anyhow::Context;
 use pollster::FutureExt;
 use wgpu::{Adapter, Device, Instance, PresentMode, Queue, Surface, SurfaceCapabilities};
 use winit::dpi::PhysicalSize;
@@ -16,12 +17,19 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(window: Arc<Window>) -> Self {
-        let window_arc = window;
+    pub fn new(window: Window) -> Self {
+        let window_arc = Arc::new(window);
         let size = window_arc.inner_size();
         let instance = Self::create_gpu_instance();
-        let surface = instance.create_surface(window_arc.clone()).unwrap();
+        let surface = instance
+            .create_surface(window_arc.clone())
+            .context("when creating instance")
+            .unwrap();
         let adapter = Self::create_adapter(instance, &surface);
+
+        println!("Using Adapter: {:?}", adapter.get_info().name);
+        println!("Device Type: {:?}", adapter.get_info().device_type);
+
         let (device, queue) = Self::create_device(&adapter);
         let surface_caps = surface.get_capabilities(&adapter);
         let config = Self::create_surface_config(size, surface_caps);
@@ -78,7 +86,7 @@ impl State {
     fn create_adapter(instance: Instance, surface: &Surface) -> Adapter {
         instance
             .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
+                power_preference: wgpu::PowerPreference::HighPerformance,
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             })
