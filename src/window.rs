@@ -1,6 +1,7 @@
 use winit::application::ApplicationHandler;
-use winit::event::WindowEvent;
+use winit::event::{ElementState, KeyEvent, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
+use winit::keyboard::{Key, NamedKey};
 use winit::window::{Window, WindowId};
 
 use crate::graphics::State;
@@ -41,6 +42,20 @@ impl ApplicationHandler for StateApplication {
                 WindowEvent::CloseRequested => {
                     event_loop.exit();
                 }
+                WindowEvent::KeyboardInput {
+                    event:
+                        KeyEvent {
+                            logical_key: key,
+                            state: ElementState::Pressed,
+                            ..
+                        },
+                    ..
+                } => match key.as_ref() {
+                    Key::Named(NamedKey::Escape) => {
+                        event_loop.exit();
+                    }
+                    _ => (),
+                },
                 WindowEvent::Resized(_) => {}
                 WindowEvent::RedrawRequested => {
                     let state = match &mut self.state {
