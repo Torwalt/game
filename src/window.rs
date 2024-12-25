@@ -56,7 +56,13 @@ impl ApplicationHandler for StateApplication {
                     }
                     _ => (),
                 },
-                WindowEvent::Resized(_) => {}
+                WindowEvent::Resized(size) => {
+                    let state = match &mut self.state {
+                        Some(state) => state,
+                        None => return,
+                    };
+                    state.resize(size)
+                }
                 WindowEvent::RedrawRequested => {
                     let state = match &mut self.state {
                         Some(state) => state,

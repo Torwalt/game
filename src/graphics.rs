@@ -108,8 +108,6 @@ impl State {
         self.config.height = new_size.height;
 
         self.surface.configure(&self.device, &self.config);
-
-        println!("Resized to {:?} from state!", new_size);
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
