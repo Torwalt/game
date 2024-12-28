@@ -20,3 +20,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return vec4<f32>(0.3, 0.2, 0.1, 1.0);
 }
 
+@fragment
+fn fs_alt(in: VertexOutput) -> @location(0) vec4<f32> {
+    return vec4<f32>(
+        abs(in.vert_pos.x),
+        abs(in.vert_pos.y),
+        abs(in.vert_pos.z),
+        1.0
+    );
+}
+
