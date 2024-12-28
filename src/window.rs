@@ -54,6 +54,13 @@ impl ApplicationHandler for StateApplication {
                     Key::Named(NamedKey::Escape) => {
                         event_loop.exit();
                     }
+                    Key::Named(NamedKey::Space) => {
+                        let state = match &mut self.state {
+                            Some(state) => state,
+                            None => return,
+                        };
+                        state.switch_pipeline()
+                    }
                     _ => (),
                 },
                 WindowEvent::Resized(size) => {
