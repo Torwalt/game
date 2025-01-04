@@ -32,74 +32,58 @@ impl ApplicationHandler for StateApplication {
         window_id: WindowId,
         event: WindowEvent,
     ) {
-        let window = match &self.state {
-            Some(state) => state.window(),
+        let state = match &mut self.state {
+            Some(state) => state,
             None => return,
         };
+        if state.window().id() != window_id {
+            return;
+        }
 
-        if window.id() == window_id {
-            match event {
-                WindowEvent::CloseRequested => {
+        // Only process input.
+        if state.input(&event) {
+            return;
+        }
+
+        match event {
+            WindowEvent::CloseRequested => {
+                event_loop.exit();
+            }
+            WindowEvent::KeyboardInput {
+                event:
+                    KeyEvent {
+                        logical_key: key,
+                        state: ElementState::Pressed,
+                        ..
+                    },
+                ..
+            } => match key.as_ref() {
+                Key::Named(NamedKey::Escape) => {
                     event_loop.exit();
                 }
-                WindowEvent::KeyboardInput {
-                    event:
-                        KeyEvent {
-                            logical_key: key,
-                            state: ElementState::Pressed,
-                            ..
-                        },
-                    ..
-                } => match key.as_ref() {
-                    Key::Named(NamedKey::Escape) => {
-                        event_loop.exit();
-                    }
-                    Key::Named(NamedKey::Space) => {
-                        let state = match &mut self.state {
-                            Some(state) => state,
-                            None => return,
-                        };
-                        state.switch_pipeline()
-                    }
-                    _ => (),
-                },
-                WindowEvent::Resized(size) => {
-                    let state = match &mut self.state {
-                        Some(state) => state,
-                        None => return,
-                    };
-                    state.resize(size)
-                }
-                WindowEvent::CursorMoved { .. } => {
-                    let state = match &mut self.state {
-                        Some(state) => state,
-                        None => return,
-                    };
-                    state.input(&event)
-                }
-                WindowEvent::RedrawRequested => {
-                    let state = match &mut self.state {
-                        Some(state) => state,
-                        None => return,
-                    };
-                    state.window().request_redraw();
+                Key::Named(NamedKey::Space) => state.switch_pipeline(),
+                _ => (),
+            },
+            WindowEvent::Resized(size) => state.resize(size),
+            WindowEvent::RedrawRequested => {
+                state.window().request_redraw();
 
-                    match state.render() {
-                        Ok(_) => {}
-                        Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                            state.resize(state.size())
-                        }
-                        Err(wgpu::SurfaceError::OutOfMemory) => {
-                            log::error!("OutOfMemory");
-                            event_loop.exit()
-                        }
-                        Err(wgpu::SurfaceError::Timeout) => {
-                            log::warn!("Surface timeout")
-                        }
-                    };
-                }
-                _ => {}
+                state.update();
+                match state.render() {
+                    Ok(_) => {}
+                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                        state.resize(state.size())
+                    }
+                    Err(wgpu::SurfaceError::OutOfMemory) => {
+                        log::error!("OutOfMemory");
+                        event_loop.exit()
+                    }
+                    Err(wgpu::SurfaceError::Timeout) => {
+                        log::warn!("Surface timeout")
+                    }
+                };
             }
+            _ => {}
         }
     }
 
