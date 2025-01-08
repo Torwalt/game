@@ -18,6 +18,7 @@ impl StateApplication {
 
 impl ApplicationHandler for StateApplication {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        println!("resumed");
         let window = {
             event_loop
                 .create_window(Window::default_attributes().with_title("Hello!"))
@@ -37,11 +38,6 @@ impl ApplicationHandler for StateApplication {
             None => return,
         };
         if state.window().id() != window_id {
-            return;
-        }
-
-        // Only process input.
-        if state.input(&event) {
             return;
         }
 
@@ -66,7 +62,7 @@ impl ApplicationHandler for StateApplication {
             },
             WindowEvent::Resized(size) => state.resize(size),
             WindowEvent::RedrawRequested => {
-                state.window().request_redraw();
+                // state.window().request_redraw();
 
                 state.update();
                 match state.render() {
@@ -87,8 +83,7 @@ impl ApplicationHandler for StateApplication {
         }
     }
 
-    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        let window = self.state.as_ref().unwrap().window();
-        window.request_redraw();
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        let _ = event_loop;
     }
 }
