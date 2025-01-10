@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use anyhow::Context;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -7,13 +9,35 @@ use winit::window::{Window, WindowId};
 use crate::game::{self, GameState};
 use crate::graphics::State;
 
+pub struct Config {
+    max_frame_time: Duration,
+    target_frame_time: Duration,
+}
+
+impl Config {
+    pub(crate) fn new(fps: u32, max_frame_time: Duration) -> Self {
+        Self {
+            target_frame_time: Duration::from_secs_f64(1. / fps as f64),
+            max_frame_time,
+        }
+    }
+}
+
 pub struct StateApplication {
     state: Option<game::GameState>,
+    accumulated_time: Duration,
+    instant: Instant,
+    config: Config,
 }
 
 impl StateApplication {
-    pub fn new() -> Self {
-        Self { state: None }
+    pub fn new(config: Config) -> Self {
+        Self {
+            state: None,
+            accumulated_time: Duration::ZERO,
+            instant: Instant::now(),
+            config,
+        }
     }
 }
 
@@ -55,7 +79,6 @@ impl ApplicationHandler for StateApplication {
             }
             WindowEvent::Resized(_size) => {}
             WindowEvent::RedrawRequested => {
-                // Not sure about these.
                 state.render().context("when rendering").unwrap();
             }
             _ => {}
@@ -67,10 +90,34 @@ impl ApplicationHandler for StateApplication {
             Some(state) => state,
             None => return,
         };
-        state.update();
 
-        if state.exit() {
-            event_loop.exit();
+        let mut elapsed = self.instant.elapsed();
+        self.instant = Instant::now();
+
+        if elapsed > self.config.max_frame_time {
+            elapsed = self.config.max_frame_time;
+        }
+
+        self.accumulated_time += elapsed;
+
+        let mut _keys_updated = false;
+
+        while self.accumulated_time > self.config.target_frame_time {
+            state.update();
+
+            if state.exit() {
+                event_loop.exit();
+                return;
+            }
+
+            self.accumulated_time = self
+                .accumulated_time
+                .saturating_sub(self.config.target_frame_time);
+
+            let _blending_factor =
+                self.accumulated_time.as_secs_f64() / self.config.target_frame_time.as_secs_f64();
+
+            state.render().unwrap();
         }
     }
 }
