@@ -3,6 +3,7 @@ use winit::event_loop::{ControlFlow, EventLoop};
 
 use self::window::StateApplication;
 
+mod game;
 mod graphics;
 mod window;
 
@@ -14,4 +15,3 @@ pub async fn run() -> Result<()> {
 
     Ok(())
 }
-

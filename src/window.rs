@@ -1,13 +1,14 @@
+use anyhow::Context;
 use winit::application::ApplicationHandler;
-use winit::event::{ElementState, KeyEvent, WindowEvent};
+use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
-use winit::keyboard::{Key, NamedKey};
 use winit::window::{Window, WindowId};
 
+use crate::game::{self, GameState};
 use crate::graphics::State;
 
 pub struct StateApplication {
-    state: Option<State>,
+    state: Option<game::GameState>,
 }
 
 impl StateApplication {
@@ -18,72 +19,58 @@ impl StateApplication {
 
 impl ApplicationHandler for StateApplication {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        println!("resumed");
         let window = {
             event_loop
                 .create_window(Window::default_attributes().with_title("Hello!"))
                 .unwrap()
         };
-        self.state = Some(State::new(window));
+        let renderer = State::new(window);
+
+        match &mut self.state {
+            Some(state) => {
+                state.update_renderer(renderer);
+            }
+            None => self.state = Some(GameState::new(renderer)),
+        }
     }
 
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
-        window_id: WindowId,
+        _window_id: WindowId,
         event: WindowEvent,
     ) {
         let state = match &mut self.state {
             Some(state) => state,
             None => return,
         };
-        if state.window().id() != window_id {
-            return;
-        }
+
+        // Is this basically sampling of input? The game state does not progress here, rather it
+        // does in about_to_wait.
+        state.input(&event);
 
         match event {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
             }
-            WindowEvent::KeyboardInput {
-                event:
-                    KeyEvent {
-                        logical_key: key,
-                        state: ElementState::Pressed,
-                        ..
-                    },
-                ..
-            } => match key.as_ref() {
-                Key::Named(NamedKey::Escape) => {
-                    event_loop.exit();
-                }
-                Key::Named(NamedKey::Space) => state.switch_pipeline(),
-                _ => (),
-            },
-            WindowEvent::Resized(size) => state.resize(size),
+            WindowEvent::Resized(_size) => {}
             WindowEvent::RedrawRequested => {
-                // state.window().request_redraw();
-
-                state.update();
-                match state.render() {
-                    Ok(_) => {}
-                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                        state.resize(state.size())
-                    }
-                    Err(wgpu::SurfaceError::OutOfMemory) => {
-                        log::error!("OutOfMemory");
-                        event_loop.exit()
-                    }
-                    Err(wgpu::SurfaceError::Timeout) => {
-                        log::warn!("Surface timeout")
-                    }
-                };
+                // Not sure about these.
+                state.render().context("when rendering").unwrap();
             }
             _ => {}
         }
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        let _ = event_loop;
+        let state = match &mut self.state {
+            Some(state) => state,
+            None => return,
+        };
+        state.update();
+
+        if state.exit() {
+            event_loop.exit();
+        }
     }
 }
