@@ -54,7 +54,7 @@ impl ApplicationHandler for StateApplication {
             Some(state) => {
                 state.update_renderer(renderer);
             }
-            None => self.state = Some(GameState::new(renderer)),
+            None => self.state = Some(GameState::new(renderer).unwrap()),
         }
     }
 

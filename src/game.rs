@@ -1,4 +1,4 @@
-use anyhow::{Ok, Result};
+use anyhow::{bail, Ok, Result};
 use winit::event::{Event, WindowEvent};
 
 use crate::graphics;
@@ -8,20 +8,26 @@ use self::input::Input;
 mod input;
 
 pub struct GameState {
+    exit: bool,
+
+    entities: Vec<Entity>,
+    map: TileMap,
     renderer: graphics::State,
     input: Input,
-    exit: bool,
 }
 
 impl GameState {
-    pub fn new(renderer: graphics::State) -> Self {
+    pub fn new(renderer: graphics::State) -> Result<Self> {
         let input = Input::new();
+        let map = TileMap::default();
 
-        Self {
+        Ok(Self {
             renderer,
             input,
             exit: false,
-        }
+            entities: Vec::new(),
+            map,
+        })
     }
 
     pub fn update_renderer(&mut self, renderer: graphics::State) {
@@ -53,4 +59,50 @@ impl GameState {
     pub fn exit(&self) -> bool {
         self.exit
     }
+}
+
+type Entity = usize;
+
+struct TileMap {
+    tiles: Vec<TileType>,
+    width: usize,
+    height: usize,
+}
+
+impl TileMap {
+    fn default() -> Self {
+        let width = 100;
+        let height = 100;
+
+        TileMap::new(width, height).unwrap()
+    }
+
+    fn new(width: usize, height: usize) -> Result<Self> {
+        if width == 0 || height == 0 {
+            bail!("width and height must be larger than 0")
+        }
+
+        let mut tiles = Vec::with_capacity(width * height);
+        for y in 0..height {
+            for x in 0..width {
+                if x == 0 || y == 0 || x == width - 1 || y == height - 1 {
+                    tiles.push(TileType::Wall);
+                } else {
+                    tiles.push(TileType::Floor);
+                }
+            }
+        }
+
+        Ok(TileMap {
+            tiles,
+            width,
+            height,
+        })
+    }
+}
+
+#[derive(Clone)]
+enum TileType {
+    Floor,
+    Wall,
 }
