@@ -1,15 +1,10 @@
 use std::sync::Arc;
 
 use anyhow::Context;
-use bytemuck::NoUninit;
 use pollster::FutureExt;
 use wgpu::{Adapter, Device, PresentMode, Queue, Surface, SurfaceCapabilities};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
-
-mod model;
-mod resources;
-mod texture;
 
 pub struct State {
     surface: Surface<'static>,
@@ -21,13 +16,6 @@ pub struct State {
     clear_color: wgpu::Color,
 
     render_pipeline: wgpu::RenderPipeline,
-}
-
-#[repr(C)]
-#[derive(NoUninit, Copy, Clone)]
-struct TileColors {
-    floor_color: [f32; 4],
-    wall_color: [f32; 4],
 }
 
 impl State {
