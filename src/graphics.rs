@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
-use anyhow::Context;
+use anyhow::{Context, Result};
 use pollster::FutureExt;
 use wgpu::{Adapter, Device, PresentMode, Queue, Surface, SurfaceCapabilities};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
+
+use crate::game::GameState;
 
 mod mesh_builder;
 
@@ -18,7 +20,7 @@ pub struct State {
     clear_color: wgpu::Color,
 
     render_pipeline: wgpu::RenderPipeline,
-    triangle_mesh: wgpu::Buffer,
+    triangle_mesh: mesh_builder::TriangleMesh,
 }
 
 impl State {
@@ -40,8 +42,6 @@ impl State {
         let config = Self::create_surface_config(size, surface_caps);
         surface.configure(&device, &config);
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
-
-        let triangle_mesh = mesh_builder::make_triangle(&device);
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -86,6 +86,8 @@ impl State {
             multiview: None,
             cache: None,
         });
+
+        let triangle_mesh = mesh_builder::TriangleMesh::new(&device);
 
         Self {
             surface,
@@ -161,6 +163,17 @@ impl State {
         })
     }
 
+    pub fn update(&mut self, s: &GameState) -> Result<()> {
+        let needs_inversion = (s.inverted() && !self.triangle_mesh.is_inverted())
+            || (!s.inverted() && self.triangle_mesh.is_inverted());
+
+        if needs_inversion {
+            self.triangle_mesh.invert(&self.device)
+        };
+
+        Ok(())
+    }
+
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
@@ -190,7 +203,7 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_vertex_buffer(0, self.triangle_mesh.slice(..));
+            render_pass.set_vertex_buffer(0, self.triangle_mesh.slice());
             render_pass.draw(0..3, 0..1);
         }
 

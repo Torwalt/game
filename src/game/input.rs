@@ -86,4 +86,24 @@ impl Input {
             .get(&k)
             .map_or(false, InputState::is_pressed)
     }
+
+    pub(crate) fn update_keys(&mut self) {
+        self.physical_keys.retain(|_, state| match state {
+            InputState::Pressed => {
+                *state = InputState::Down;
+                true
+            }
+            InputState::Down => true,
+            InputState::Released => false,
+        });
+
+        self.logical_keys.retain(|_, state| match state {
+            InputState::Pressed => {
+                *state = InputState::Down;
+                true
+            }
+            InputState::Down => true,
+            InputState::Released => false,
+        });
+    }
 }

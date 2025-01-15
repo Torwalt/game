@@ -7,31 +7,51 @@ use self::input::Input;
 
 mod input;
 
-pub struct GameState {
-    exit: bool,
-
-    entities: Vec<Entity>,
-    map: TileMap,
+pub struct ECS {
+    pub game_state: GameState,
     renderer: graphics::State,
-    input: Input,
 }
 
-impl GameState {
-    pub fn new(renderer: graphics::State) -> Result<Self> {
-        let input = Input::new();
-        let map = TileMap::default();
-
-        Ok(Self {
+impl ECS {
+    pub fn new(game_state: GameState, renderer: graphics::State) -> Self {
+        Self {
+            game_state,
             renderer,
-            input,
-            exit: false,
-            entities: Vec::new(),
-            map,
-        })
+        }
+    }
+
+    pub fn render(&mut self) -> Result<()> {
+        self.renderer.update(&self.game_state)?;
+        self.renderer.render()?;
+        Ok(())
     }
 
     pub fn update_renderer(&mut self, renderer: graphics::State) {
         self.renderer = renderer
+    }
+}
+
+pub struct GameState {
+    entities: Vec<Entity>,
+    map: TileMap,
+    input: Input,
+
+    invert_triangle: bool,
+    exit: bool,
+}
+
+impl GameState {
+    pub fn new() -> Result<Self> {
+        let input = Input::new();
+        let map = TileMap::default();
+
+        Ok(Self {
+            input,
+            entities: Vec::new(),
+            map,
+            exit: false,
+            invert_triangle: false,
+        })
     }
 
     pub fn update(&mut self) {
@@ -40,12 +60,23 @@ impl GameState {
             .is_logical_key_pressed(winit::keyboard::NamedKey::Escape)
         {
             self.exit = true;
+            return;
+        }
+
+        if self
+            .input
+            .is_physical_key_pressed(winit::keyboard::KeyCode::KeyI)
+        {
+            self.invert_triangle = !self.invert_triangle
         }
     }
 
-    pub fn render(&mut self) -> Result<()> {
-        self.renderer.render()?;
-        Ok(())
+    pub fn update_keys(&mut self) {
+        self.input.update_keys()
+    }
+
+    pub fn inverted(&self) -> bool {
+        self.invert_triangle
     }
 
     pub fn input(&mut self, event: &WindowEvent) {

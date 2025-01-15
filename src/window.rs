@@ -6,7 +6,7 @@ use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowId};
 
-use crate::game::{self, GameState};
+use crate::game::{self, ECS};
 use crate::graphics::State;
 
 pub struct Config {
@@ -24,7 +24,7 @@ impl Config {
 }
 
 pub struct StateApplication {
-    state: Option<game::GameState>,
+    state: Option<game::ECS>,
     accumulated_time: Duration,
     instant: Instant,
     config: Config,
@@ -54,7 +54,7 @@ impl ApplicationHandler for StateApplication {
             Some(state) => {
                 state.update_renderer(renderer);
             }
-            None => self.state = Some(GameState::new(renderer).unwrap()),
+            None => self.state = Some(ECS::new(game::GameState::new().unwrap(), renderer)),
         }
     }
 
@@ -71,7 +71,7 @@ impl ApplicationHandler for StateApplication {
 
         // Is this basically sampling of input? The game state does not progress here, rather it
         // does in about_to_wait.
-        state.input(&event);
+        state.game_state.input(&event);
 
         match event {
             WindowEvent::CloseRequested => {
@@ -100,14 +100,19 @@ impl ApplicationHandler for StateApplication {
 
         self.accumulated_time += elapsed;
 
-        let mut _keys_updated = false;
+        let mut keys_updated = false;
 
         while self.accumulated_time > self.config.target_frame_time {
-            state.update();
+            state.game_state.update();
 
-            if state.exit() {
+            if state.game_state.exit() {
                 event_loop.exit();
                 return;
+            }
+
+            if !keys_updated {
+                state.game_state.update_keys();
+                keys_updated = true;
             }
 
             self.accumulated_time = self
