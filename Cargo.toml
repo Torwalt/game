@@ -9,6 +9,7 @@ edition = "2021"
 anyhow = "1.0.95"
 bytemuck = { version = "1.16", features = [ "derive" ] }
 cgmath = "0.18.0"
+glm = "0.2.3"
 image = { version = "0.24", features = [ "png", "jpeg" ] }
 log = "0.4.22"
 pollster = "0.4.0"

@@ -6,6 +6,8 @@ use wgpu::{Adapter, Device, PresentMode, Queue, Surface, SurfaceCapabilities};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
+mod mesh_builder;
+
 pub struct State {
     surface: Surface<'static>,
     device: Device,
@@ -16,6 +18,7 @@ pub struct State {
     clear_color: wgpu::Color,
 
     render_pipeline: wgpu::RenderPipeline,
+    triangle_mesh: wgpu::Buffer,
 }
 
 impl State {
@@ -36,8 +39,9 @@ impl State {
         let surface_caps = surface.get_capabilities(&adapter);
         let config = Self::create_surface_config(size, surface_caps);
         surface.configure(&device, &config);
-
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
+
+        let triangle_mesh = mesh_builder::make_triangle(&device);
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -52,7 +56,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[],
+                buffers: &[mesh_builder::Vertex::desc()],
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -97,6 +101,7 @@ impl State {
                 a: 1.0,
             },
             render_pipeline,
+            triangle_mesh,
         }
     }
 
@@ -185,6 +190,7 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_vertex_buffer(0, self.triangle_mesh.slice(..));
             render_pass.draw(0..3, 0..1);
         }
 
