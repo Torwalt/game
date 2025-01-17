@@ -10,15 +10,17 @@ const TRIANGLE: Polygon = [
     ];
 
 #[rustfmt::skip]
-const QUAD: [Vertex; 6] = [
+const QUAD: [Vertex; 4] = [
         Vertex{ position: [-0.5,  0.5], color: [1.0, 0.0, 0.0 ] },
         Vertex{ position: [ 0.5,  0.5], color: [0.0, 1.0, 0.0 ] },
         Vertex{ position: [ 0.5, -0.5], color: [0.0, 0.0, 1.0 ] },
-
-        Vertex{ position: [-0.5,  0.5], color: [0.0, 1.0, 0.0 ] },
-        Vertex{ position: [ 0.5, -0.5], color: [0.0, 1.0, 0.0 ] },
         Vertex{ position: [-0.5, -0.5], color: [0.0, 0.0, 1.0 ] },
     ];
+
+const QUAD_INDEX: [u32; 6] = [
+    0, 1, 2, // First triangle (top-left, top-right, bottom-right)
+    0, 2, 3, // Second triangle (top-left, bottom-right, bottom-left)
+];
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -41,20 +43,17 @@ impl Vertex {
 }
 
 pub struct QuadMesh {
-    mesh: [Vertex; 6],
-    buf: wgpu::Buffer,
+    mesh: [Vertex; 4],
+    pub buf: wgpu::Buffer,
+    pub index: wgpu::Buffer,
 }
 
 impl QuadMesh {
     pub fn new(device: &wgpu::Device) -> Self {
         let mesh = QUAD;
-        let buf = make_quad_buffer(device, &mesh);
+        let (buf, index) = make_quad_buffers(device, &mesh);
 
-        Self { mesh, buf }
-    }
-
-    pub fn slice(&self) -> wgpu::BufferSlice {
-        self.buf.slice(..)
+        Self { mesh, buf, index }
     }
 }
 
@@ -91,14 +90,19 @@ impl TriangleMesh {
     }
 }
 
-fn make_quad_buffer(device: &wgpu::Device, mesh: &[Vertex; 6]) -> wgpu::Buffer {
-    let buf_disc = wgpu::util::BufferInitDescriptor {
+fn make_quad_buffers(device: &wgpu::Device, mesh: &[Vertex; 4]) -> (wgpu::Buffer, wgpu::Buffer) {
+    let buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("quad buffer"),
         contents: &bytemuck::cast_slice(mesh),
         usage: wgpu::BufferUsages::VERTEX,
-    };
+    });
+    let index = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("index buffer"),
+        contents: &bytemuck::cast_slice(&QUAD_INDEX),
+        usage: wgpu::BufferUsages::INDEX,
+    });
 
-    device.create_buffer_init(&buf_disc)
+    (buf, index)
 }
 
 fn make_triangle_buffer(device: &wgpu::Device, mesh: &Polygon) -> wgpu::Buffer {

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use pollster::FutureExt;
+use wgpu::util::RenderEncoder;
 use wgpu::{Adapter, Device, PresentMode, Queue, Surface, SurfaceCapabilities};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
@@ -212,8 +213,10 @@ impl State {
             render_pass.set_pipeline(&self.render_pipeline);
 
             if self.render_quad {
-                render_pass.set_vertex_buffer(0, self.quad_mesh.slice());
-                render_pass.draw(0..6, 0..1);
+                render_pass.set_vertex_buffer(0, self.quad_mesh.buf.slice(..));
+                render_pass
+                    .set_index_buffer(self.quad_mesh.index.slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.draw_indexed(0..6, 0, 0..1);
             } else {
                 render_pass.set_vertex_buffer(0, self.triangle_mesh.slice());
                 render_pass.draw(0..3, 0..1);
