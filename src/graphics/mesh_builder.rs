@@ -9,6 +9,17 @@ const TRIANGLE: Polygon = [
         Vertex{ position: [0.0, 0.75], color: [0.0, 0.0, 1.0 ] },
     ];
 
+#[rustfmt::skip]
+const QUAD: [Vertex; 6] = [
+        Vertex{ position: [-0.5,  0.5], color: [1.0, 0.0, 0.0 ] },
+        Vertex{ position: [ 0.5,  0.5], color: [0.0, 1.0, 0.0 ] },
+        Vertex{ position: [ 0.5, -0.5], color: [0.0, 0.0, 1.0 ] },
+
+        Vertex{ position: [-0.5,  0.5], color: [0.0, 1.0, 0.0 ] },
+        Vertex{ position: [ 0.5, -0.5], color: [0.0, 1.0, 0.0 ] },
+        Vertex{ position: [-0.5, -0.5], color: [0.0, 0.0, 1.0 ] },
+    ];
+
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
@@ -26,6 +37,24 @@ impl Vertex {
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &Self::ATTRIBUTES,
         }
+    }
+}
+
+pub struct QuadMesh {
+    mesh: [Vertex; 6],
+    buf: wgpu::Buffer,
+}
+
+impl QuadMesh {
+    pub fn new(device: &wgpu::Device) -> Self {
+        let mesh = QUAD;
+        let buf = make_quad_buffer(device, &mesh);
+
+        Self { mesh, buf }
+    }
+
+    pub fn slice(&self) -> wgpu::BufferSlice {
+        self.buf.slice(..)
     }
 }
 
@@ -60,6 +89,16 @@ impl TriangleMesh {
     pub fn slice(&self) -> wgpu::BufferSlice {
         self.buf.slice(..)
     }
+}
+
+fn make_quad_buffer(device: &wgpu::Device, mesh: &[Vertex; 6]) -> wgpu::Buffer {
+    let buf_disc = wgpu::util::BufferInitDescriptor {
+        label: Some("quad buffer"),
+        contents: &bytemuck::cast_slice(mesh),
+        usage: wgpu::BufferUsages::VERTEX,
+    };
+
+    device.create_buffer_init(&buf_disc)
 }
 
 fn make_triangle_buffer(device: &wgpu::Device, mesh: &Polygon) -> wgpu::Buffer {

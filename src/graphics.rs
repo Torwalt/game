@@ -21,6 +21,8 @@ pub struct State {
 
     render_pipeline: wgpu::RenderPipeline,
     triangle_mesh: mesh_builder::TriangleMesh,
+    quad_mesh: mesh_builder::QuadMesh,
+    render_quad: bool,
 }
 
 impl State {
@@ -88,6 +90,7 @@ impl State {
         });
 
         let triangle_mesh = mesh_builder::TriangleMesh::new(&device);
+        let quad_mesh = mesh_builder::QuadMesh::new(&device);
 
         Self {
             surface,
@@ -104,6 +107,8 @@ impl State {
             },
             render_pipeline,
             triangle_mesh,
+            quad_mesh,
+            render_quad: false,
         }
     }
 
@@ -171,6 +176,8 @@ impl State {
             self.triangle_mesh.invert(&self.device)
         };
 
+        self.render_quad = s.render_quad();
+
         Ok(())
     }
 
@@ -203,7 +210,15 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_vertex_buffer(0, self.triangle_mesh.slice());
+
+            if self.render_quad {
+                render_pass.set_vertex_buffer(0, self.quad_mesh.slice());
+                render_pass.draw(0..6, 0..1);
+            } else {
+                render_pass.set_vertex_buffer(0, self.triangle_mesh.slice());
+                render_pass.draw(0..3, 0..1);
+            }
+
             render_pass.draw(0..3, 0..1);
         }
 

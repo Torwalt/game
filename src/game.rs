@@ -7,6 +7,7 @@ use self::input::Input;
 
 mod input;
 
+// Temp struct.
 pub struct ECS {
     pub game_state: GameState,
     renderer: graphics::State,
@@ -36,7 +37,9 @@ pub struct GameState {
     map: TileMap,
     input: Input,
 
+    // Worst state management ever, let me cook.
     invert_triangle: bool,
+    render_quad: bool,
     exit: bool,
 }
 
@@ -51,6 +54,7 @@ impl GameState {
             map,
             exit: false,
             invert_triangle: false,
+            render_quad: false,
         })
     }
 
@@ -69,6 +73,13 @@ impl GameState {
         {
             self.invert_triangle = !self.invert_triangle
         }
+
+        if self
+            .input
+            .is_physical_key_pressed(winit::keyboard::KeyCode::KeyQ)
+        {
+            self.render_quad = !self.render_quad
+        }
     }
 
     pub fn update_keys(&mut self) {
@@ -77,6 +88,10 @@ impl GameState {
 
     pub fn inverted(&self) -> bool {
         self.invert_triangle
+    }
+
+    pub fn render_quad(&self) -> bool {
+        self.render_quad
     }
 
     pub fn input(&mut self, event: &WindowEvent) {
