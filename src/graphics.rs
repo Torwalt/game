@@ -2,14 +2,15 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use pollster::FutureExt;
-use wgpu::util::RenderEncoder;
 use wgpu::{Adapter, Device, PresentMode, Queue, Surface, SurfaceCapabilities};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
 use crate::game::GameState;
 
+mod assets;
 mod mesh_builder;
+mod sprites;
 
 pub struct State {
     surface: Surface<'static>,
