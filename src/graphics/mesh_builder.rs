@@ -4,18 +4,18 @@ type Polygon = [Vertex; 3];
 
 #[rustfmt::skip]
 const TRIANGLE: Polygon = [
-        Vertex{ position: [-0.75, -0.75], color: [1.0, 0.0, 0.0 ] },
-        Vertex{ position: [0.75, -0.75], color: [0.0, 1.0, 0.0 ] },
-        Vertex{ position: [0.0, 0.75], color: [0.0, 0.0, 1.0 ] },
+        Vertex{ position: [-0.75, -0.75], color: [1.0, 0.0, 0.0 ], tex_coord: [0.0, 1.0]},
+        Vertex{ position: [0.75, -0.75],  color: [0.0, 1.0, 0.0 ], tex_coord: [0.0, 1.0] },
+        Vertex{ position: [0.0, 0.75],    color: [0.0, 0.0, 1.0 ], tex_coord: [0.0, 1.0] },
     ];
 
 #[rustfmt::skip]
 const QUAD: [Vertex; 4] = [
-        Vertex{ position: [-0.5,  0.5], color: [1.0, 0.0, 0.0 ] },
-        Vertex{ position: [ 0.5,  0.5], color: [0.0, 1.0, 0.0 ] },
-        Vertex{ position: [ 0.5, -0.5], color: [0.0, 0.0, 1.0 ] },
-        Vertex{ position: [-0.5, -0.5], color: [0.0, 0.0, 1.0 ] },
-    ];
+    Vertex{ position: [-0.5,  0.5], color: [1.0, 0.0, 0.0], tex_coord: [0.0, 0.0] },
+    Vertex{ position: [ 0.5,  0.5], color: [0.0, 1.0, 0.0], tex_coord: [1.0, 0.0] },
+    Vertex{ position: [ 0.5, -0.5], color: [0.0, 0.0, 1.0], tex_coord: [1.0, 1.0] },
+    Vertex{ position: [-0.5, -0.5], color: [0.0, 0.0, 1.0], tex_coord: [0.0, 1.0] },
+];
 
 const QUAD_INDEX: [u32; 6] = [
     0, 1, 2, // First triangle (top-left, top-right, bottom-right)
@@ -27,11 +27,12 @@ const QUAD_INDEX: [u32; 6] = [
 pub struct Vertex {
     position: [f32; 2],
     color: [f32; 3],
+    tex_coord: [f32; 2],
 }
 
 impl Vertex {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x3];
+    const ATTRIBUTES: [wgpu::VertexAttribute; 3] =
+        wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x3, 2 => Float32x2];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {

@@ -1,15 +1,19 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use pollster::FutureExt;
-use wgpu::util::RenderEncoder;
 use wgpu::{Adapter, Device, PresentMode, Queue, Surface, SurfaceCapabilities};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
 use crate::game::GameState;
 
+use self::sprites::Sprite;
+
+pub mod assets;
 mod mesh_builder;
+mod sprites;
 
 pub struct State {
     surface: Surface<'static>,
@@ -24,10 +28,11 @@ pub struct State {
     triangle_mesh: mesh_builder::TriangleMesh,
     quad_mesh: mesh_builder::QuadMesh,
     render_quad: bool,
+    sprite: Sprite,
 }
 
 impl State {
-    pub fn new(window: Window) -> Self {
+    pub fn new(window: Window, assets_path: PathBuf) -> Self {
         let window_arc = Arc::new(window);
         let size = window_arc.inner_size();
         let instance = Self::create_gpu_instance();
@@ -45,11 +50,13 @@ impl State {
         let config = Self::create_surface_config(size, surface_caps);
         surface.configure(&device, &config);
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
+        let loaded_img = assets::LoadedImage::from_path(assets_path, "sprites/test4.png").unwrap();
+        let sprite = sprites::Sprite::new(&device, &queue, loaded_img);
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[&sprite.bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -110,6 +117,7 @@ impl State {
             triangle_mesh,
             quad_mesh,
             render_quad: false,
+            sprite,
         }
     }
 
@@ -211,6 +219,7 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, &self.sprite.bind_group, &[]);
 
             if self.render_quad {
                 render_pass.set_vertex_buffer(0, self.quad_mesh.buf.slice(..));
@@ -221,8 +230,6 @@ impl State {
                 render_pass.set_vertex_buffer(0, self.triangle_mesh.slice());
                 render_pass.draw(0..3, 0..1);
             }
-
-            render_pass.draw(0..3, 0..1);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));

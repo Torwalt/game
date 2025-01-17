@@ -10,7 +10,9 @@ mod graphics;
 mod window;
 
 pub async fn run() -> Result<()> {
-    let config = Config::new(60, Duration::from_millis(17));
+    let assets_path = graphics::assets::make_assets_path()?;
+    let config = Config::new(60, Duration::from_millis(17), assets_path);
+
     let mut app = StateApplication::new(config);
     let event_loop = EventLoop::new()?;
     event_loop.set_control_flow(ControlFlow::Poll);

@@ -8,12 +8,9 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.95"
 bytemuck = { version = "1.16", features = [ "derive" ] }
-cgmath = "0.18.0"
-glm = "0.2.3"
-image = { version = "0.24", features = [ "png", "jpeg" ] }
+image = { version = "0.25.5", features = [ "png", "jpeg" ] }
 log = "0.4.22"
 pollster = "0.4.0"
-tobj = { version = "4.0.2", default-features = false, features = ["async"]}
 wgpu = "23.0.1"
 winit = "0.30.7"
 

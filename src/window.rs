@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use anyhow::Context;
@@ -12,13 +13,15 @@ use crate::graphics::State;
 pub struct Config {
     max_frame_time: Duration,
     target_frame_time: Duration,
+    assets_path: PathBuf,
 }
 
 impl Config {
-    pub(crate) fn new(fps: u32, max_frame_time: Duration) -> Self {
+    pub(crate) fn new(fps: u32, max_frame_time: Duration, assets_path: PathBuf) -> Self {
         Self {
             target_frame_time: Duration::from_secs_f64(1. / fps as f64),
             max_frame_time,
+            assets_path,
         }
     }
 }
@@ -48,7 +51,7 @@ impl ApplicationHandler for StateApplication {
                 .create_window(Window::default_attributes().with_title("Hello!"))
                 .unwrap()
         };
-        let renderer = State::new(window);
+        let renderer = State::new(window, self.config.assets_path.clone());
 
         match &mut self.state {
             Some(state) => {
