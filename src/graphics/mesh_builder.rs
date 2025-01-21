@@ -1,6 +1,14 @@
+use std::mem;
+
 use wgpu::util::DeviceExt;
 
 type Polygon = [Vertex; 3];
+
+const NUM_INSTANCES_PER_ROW: u32 = 10;
+const INSTANCE_DISPLACEMENT: cgmath::Vector2<f32> = cgmath::Vector2::new(
+    (NUM_INSTANCES_PER_ROW as f32 - 1.0) * 0.5,
+    (NUM_INSTANCES_PER_ROW as f32 - 1.0) * 0.5,
+);
 
 #[rustfmt::skip]
 const TRIANGLE: Polygon = [
@@ -17,10 +25,156 @@ const QUAD: [Vertex; 4] = [
     Vertex{ position: [-0.5, -0.5], color: [0.0, 0.0, 1.0], tex_coord: [0.0, 1.0] },
 ];
 
-const QUAD_INDEX: [u32; 6] = [
+pub const QUAD_INDEX: [u32; 6] = [
     0, 1, 2, // First triangle (top-left, top-right, bottom-right)
     0, 2, 3, // Second triangle (top-left, bottom-right, bottom-left)
 ];
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct TileInstance {
+    position: [f32; 2],
+}
+
+impl TileInstance {
+    pub fn to_raw(&self) -> [[f32; 4]; 4] {
+        let mut matrix = [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ];
+
+        matrix[3][0] = self.position[0];
+        matrix[3][1] = self.position[1];
+
+        matrix
+    }
+
+    pub fn make_batch(num: usize) -> Vec<TileInstance> {
+        // Create instance buffer with positions
+        let instances = (0..NUM_INSTANCES_PER_ROW)
+            .flat_map(|y| {
+                (0..NUM_INSTANCES_PER_ROW).map(move |x| {
+                    let position = cgmath::Vector2 {
+                        x: x as f32,
+                        y: y as f32,
+                    } - INSTANCE_DISPLACEMENT;
+
+                    // println!("Instance position: ({}, {})", position.x, position.y);
+
+                    TileInstance {
+                        position: [position.x, position.y],
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+
+        instances
+    }
+
+    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<TileInstance>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &[wgpu::VertexAttribute {
+                shader_location: 3, // Matches shader location
+                offset: 0,
+                format: wgpu::VertexFormat::Float32x2,
+            }],
+        }
+    }
+}
+
+pub struct Camera {
+    view: cgmath::Matrix4<f32>,
+    orthographic: cgmath::Matrix4<f32>,
+}
+
+impl Camera {
+    #[rustfmt::skip]
+    pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 0.5, 0.5,
+    0.0, 0.0, 0.0, 1.0,
+);
+
+    pub fn new(position: [f32; 2], width: f32, height: f32) -> Self {
+        println!("width: {} height: {}", width, height);
+        let view = cgmath::Matrix4::from_translation(cgmath::Vector3 {
+            x: -position[0],
+            y: -position[1],
+            z: 0.0,
+        });
+
+        let half_width = width / 2.0;
+        let half_height = height / 2.0;
+        let near = 0.1;
+        let far = 100.0;
+
+        // Define the orthographic projection matrix
+        let orthographic = cgmath::ortho(
+            -10.0, // left
+            10.0,  // right
+            -10.0, // bottom
+            10.0,  // top
+            near,  // near
+            far,   // far
+        );
+
+        Self { view, orthographic }
+    }
+
+    fn uniform(&self) -> [[f32; 4]; 4] {
+        (Camera::OPENGL_TO_WGPU_MATRIX * self.orthographic * self.view).into()
+        // (self.orthographic * self.view * Camera::OPENGL_TO_WGPU_MATRIX).into()
+        // (self.orthographic * self.view ).into()
+    }
+}
+
+pub struct CameraBuffer {
+    pub bind_group: wgpu::BindGroup,
+    pub bind_group_layout: wgpu::BindGroupLayout,
+}
+
+impl CameraBuffer {
+    pub fn new(camera: &Camera, device: &wgpu::Device) -> Self {
+        let uniform = camera.uniform();
+        println!("camera uniform: {:?}", uniform);
+        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Camera Buffer"),
+            contents: bytemuck::cast_slice(&uniform),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+            label: Some("camera_bind_group_layout"),
+        });
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: buffer.as_entire_binding(),
+            }],
+            label: Some("camera_bind_group"),
+        });
+
+        Self {
+            bind_group,
+            bind_group_layout,
+        }
+    }
+}
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -47,14 +201,21 @@ pub struct QuadMesh {
     mesh: [Vertex; 4],
     pub buf: wgpu::Buffer,
     pub index: wgpu::Buffer,
+    pub instance_buf: wgpu::Buffer,
 }
 
 impl QuadMesh {
-    pub fn new(device: &wgpu::Device) -> Self {
+    pub fn new(device: &wgpu::Device, instances: &Vec<TileInstance>) -> Self {
         let mesh = QUAD;
         let (buf, index) = make_quad_buffers(device, &mesh);
+        let instance_buf = make_instance_buffer(device, instances);
 
-        Self { mesh, buf, index }
+        Self {
+            mesh,
+            buf,
+            index,
+            instance_buf,
+        }
     }
 }
 
@@ -104,6 +265,19 @@ fn make_quad_buffers(device: &wgpu::Device, mesh: &[Vertex; 4]) -> (wgpu::Buffer
     });
 
     (buf, index)
+}
+
+fn make_instance_buffer(device: &wgpu::Device, instances: &Vec<TileInstance>) -> wgpu::Buffer {
+    // let instance_data = instances
+    //     .iter()
+    //     .map(|instance| instance.to_raw())
+    //     .collect::<Vec<_>>();
+
+    device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("instance buffer"),
+        contents: bytemuck::cast_slice(&instances),
+        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+    })
 }
 
 fn make_triangle_buffer(device: &wgpu::Device, mesh: &Polygon) -> wgpu::Buffer {

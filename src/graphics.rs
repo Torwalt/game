@@ -29,6 +29,8 @@ pub struct State {
     quad_mesh: mesh_builder::QuadMesh,
     render_quad: bool,
     sprite: Sprite,
+    instances: Vec<mesh_builder::TileInstance>,
+    camera_buffer: mesh_builder::CameraBuffer,
 }
 
 impl State {
@@ -53,10 +55,13 @@ impl State {
         let loaded_img = assets::LoadedImage::from_path(assets_path, "sprites/test4.png").unwrap();
         let sprite = sprites::Sprite::new(&device, &queue, loaded_img);
 
+        let camera = mesh_builder::Camera::new([0.0, 0.0], size.width as f32, size.height as f32);
+        let camera_buffer = mesh_builder::CameraBuffer::new(&camera, &device);
+
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&sprite.bind_group_layout],
+                bind_group_layouts: &[&sprite.bind_group_layout, &camera_buffer.bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -66,7 +71,10 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[mesh_builder::Vertex::desc()],
+                buffers: &[
+                    mesh_builder::Vertex::desc(),
+                    mesh_builder::TileInstance::desc(),
+                ],
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -98,7 +106,8 @@ impl State {
         });
 
         let triangle_mesh = mesh_builder::TriangleMesh::new(&device);
-        let quad_mesh = mesh_builder::QuadMesh::new(&device);
+        let instances = mesh_builder::TileInstance::make_batch(100);
+        let quad_mesh = mesh_builder::QuadMesh::new(&device, &instances);
 
         Self {
             surface,
@@ -118,6 +127,8 @@ impl State {
             quad_mesh,
             render_quad: false,
             sprite,
+            instances,
+            camera_buffer,
         }
     }
 
@@ -220,16 +231,16 @@ impl State {
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.sprite.bind_group, &[]);
+            render_pass.set_bind_group(1, &self.camera_buffer.bind_group, &[]);
 
-            if self.render_quad {
-                render_pass.set_vertex_buffer(0, self.quad_mesh.buf.slice(..));
-                render_pass
-                    .set_index_buffer(self.quad_mesh.index.slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..6, 0, 0..1);
-            } else {
-                render_pass.set_vertex_buffer(0, self.triangle_mesh.slice());
-                render_pass.draw(0..3, 0..1);
-            }
+            render_pass.set_vertex_buffer(0, self.quad_mesh.buf.slice(..));
+            render_pass.set_vertex_buffer(1, self.quad_mesh.instance_buf.slice(..));
+            render_pass.set_index_buffer(self.quad_mesh.index.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.draw_indexed(
+                0..mesh_builder::QUAD_INDEX.len() as u32,
+                0,
+                0..self.instances.len() as u32,
+            );
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
