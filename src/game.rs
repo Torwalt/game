@@ -109,13 +109,20 @@ impl GameState {
 
 type Entity = usize;
 
-struct TileMap {
+pub struct TileMap {
     tiles: Vec<TileType>,
     width: usize,
     height: usize,
 }
 
 impl TileMap {
+    pub fn iter(&self) -> TileMapIter {
+        TileMapIter {
+            current_idx: 0,
+            tile_map: self,
+        }
+    }
+
     fn default() -> Self {
         let width = 100;
         let height = 100;
@@ -147,8 +154,45 @@ impl TileMap {
     }
 }
 
+struct TileMapIter<'a> {
+    current_idx: usize,
+    tile_map: &'a TileMap,
+}
+
+impl Iterator for TileMapIter<'_> {
+    type Item = Tile;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let tile = self.tile_map.tiles.get(self.current_idx)?;
+        let x = self.current_idx % self.tile_map.width;
+        let y = self.current_idx / self.tile_map.height;
+        self.current_idx += 1;
+        Some(Self::Item {
+            position: (x as u32, y as u32),
+            ty: tile.clone(),
+        })
+    }
+}
+
+pub struct Tile {
+    pub position: (u32, u32),
+    pub ty: TileType,
+}
+
 #[derive(Clone)]
-enum TileType {
+pub enum TileType {
     Floor,
     Wall,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*; // Import the items from the outer module into the test module
+
+    #[test]
+    fn test_tile_map_iter() -> Result<()> {
+        let positions: Vec<Tile> = TileMap::new(10, 10)?.iter().collect();
+        assert_eq!(100, positions.len());
+        Ok(())
+    }
 }

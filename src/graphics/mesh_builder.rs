@@ -61,8 +61,6 @@ impl TileInstance {
                         y: y as f32,
                     } - INSTANCE_DISPLACEMENT;
 
-                    // println!("Instance position: ({}, {})", position.x, position.y);
-
                     TileInstance {
                         position: [position.x, position.y],
                     }
@@ -71,6 +69,9 @@ impl TileInstance {
             .collect::<Vec<_>>();
 
         instances
+    }
+
+    pub fn from_tile_map() {
     }
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
