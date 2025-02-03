@@ -26,11 +26,14 @@ fn vs_main(vertex: Vertex, instance: InstanceInput) -> VertexOutput {
     var out: VertexOutput;
     out.texCoord = vertex.texCoord;
 
-    let translation = vec4(instance.instance_position, 1.0, 1.0);
-    let world_pos = vec4(vertex.position, 0.0, 1.0) + translation;
-    // let world_pos = vec4(vertex.position, 0.0, 1.0);
-    // out.clip_position = camera.view_proj * world_pos; // Apply camera matrix
-    out.clip_position = world_pos; // Apply camera matrix
+    // let scaled_position = vertex.position * 0.4; // Adjust this multiplier to scale
+    let scaled_position = vertex.position * 1;
+    let translation = vec4(instance.instance_position, 0.0, 1.0);
+    let world_pos = vec4(scaled_position, 0.0, 1.0) + translation;
+
+    // Convert to clip space
+    out.clip_position = world_pos * vec4(0.4, 0.4, 0.0, 1.0); // This scales the entire scene, adjust as needed
+    // out.clip_position = world_pos;
 
     return out;
 }
