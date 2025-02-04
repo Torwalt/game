@@ -19,15 +19,22 @@ const TRIANGLE: Polygon = [
 
 #[rustfmt::skip]
 const QUAD: [Vertex; 4] = [
+    // tex_coords map texture corners to corner of quad. Because the quad is essentially a canvas,
+    // we can use the corner verteces as texture corners. However, we need to make sure to use the
+    // correct coordinate system.
+    // Top Left.
     Vertex{ position: [-0.5,  0.5], color: [1.0, 0.0, 0.0], tex_coord: [0.0, 0.0] },
-    Vertex{ position: [ 0.5,  0.5], color: [0.0, 1.0, 0.0], tex_coord: [1.0, 0.0] },
-    Vertex{ position: [ 0.5, -0.5], color: [0.0, 0.0, 1.0], tex_coord: [1.0, 1.0] },
+    // Bottom Left.
     Vertex{ position: [-0.5, -0.5], color: [0.0, 0.0, 1.0], tex_coord: [0.0, 1.0] },
+    // Bottom Right.
+    Vertex{ position: [ 0.5, -0.5], color: [0.0, 0.0, 1.0], tex_coord: [1.0, 1.0] },
+    // Top Right.
+    Vertex{ position: [ 0.5,  0.5], color: [0.0, 1.0, 0.0], tex_coord: [1.0, 0.0] },
 ];
 
 pub const QUAD_INDEX: [u32; 6] = [
-    0, 1, 2, // First triangle (top-left, top-right, bottom-right)
-    0, 2, 3, // Second triangle (top-left, bottom-right, bottom-left)
+    0, 1, 2,
+    3, 2, 0,
 ];
 
 #[repr(C)]
