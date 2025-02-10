@@ -123,9 +123,9 @@ impl TileMap {
         }
     }
 
-    fn default() -> Self {
-        let width = 100;
-        let height = 100;
+    pub fn default() -> Self {
+        let width = 10;
+        let height = 10;
 
         TileMap::new(width, height).unwrap()
     }
@@ -154,7 +154,7 @@ impl TileMap {
     }
 }
 
-struct TileMapIter<'a> {
+pub struct TileMapIter<'a> {
     current_idx: usize,
     tile_map: &'a TileMap,
 }

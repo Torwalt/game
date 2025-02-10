@@ -2,6 +2,8 @@ use std::mem;
 
 use wgpu::util::DeviceExt;
 
+use crate::game::{self, TileMap};
+
 type Polygon = [Vertex; 3];
 
 const NUM_INSTANCES_PER_ROW: u32 = 10;
@@ -35,7 +37,7 @@ const QUAD: [Vertex; 4] = [
 pub const QUAD_INDEX: [u32; 6] = [0, 1, 2, 3, 2, 0];
 
 #[repr(C)]
-#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable, Debug)]
 pub struct TileInstance {
     position: [f32; 2],
     texture_index: u32,
@@ -63,7 +65,20 @@ impl TileInstance {
         instances
     }
 
-    pub fn from_tile_map() {}
+    pub fn from_tile_map(tile_map: &TileMap) -> Vec<TileInstance> {
+        tile_map
+            .iter()
+            .map(|tile| TileInstance {
+                position: [tile.position.0 as f32, tile.position.1 as f32],
+                texture_index: tile.ty as u32,
+                // texture_index: if tile.ty == game::TileType::Floor {
+                //     0
+                // }else {
+                //     1
+                // }
+            })
+            .collect()
+    }
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {

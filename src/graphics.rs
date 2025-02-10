@@ -7,7 +7,7 @@ use wgpu::{Adapter, Device, PresentMode, Queue, Surface, SurfaceCapabilities};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
-use crate::game::GameState;
+use crate::game::{GameState, TileMap};
 
 use self::sprites::Sprite;
 
@@ -116,7 +116,10 @@ impl State {
         });
 
         let triangle_mesh = mesh_builder::TriangleMesh::new(&device);
-        let instances = mesh_builder::TileInstance::make_batch(100);
+        // This is temporary.
+        let map = TileMap::default();
+        let instances = mesh_builder::TileInstance::from_tile_map(&map);
+        println!("{:?}", instances);
         let quad_mesh = mesh_builder::QuadMesh::new(&device, &instances);
 
         Self {

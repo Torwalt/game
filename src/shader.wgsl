@@ -31,14 +31,20 @@ fn vs_main(vertex: Vertex, instance: InstanceInput) -> VertexOutput {
     out.texCoord = vertex.texCoord;
     out.texture_index = instance.texture_index;
 
-    // let scaled_position = vertex.position * 0.4; // Adjust this multiplier to scale
     let scaled_position = vertex.position * 1;
-    let translation = vec4(instance.instance_position, 0.0, 1.0);
+    // let max_coord = 10.0; // Assuming this is the maximum coordinate in both x and y for now.
+    // let translation_offset = max_coord / 2.0;
+    let translation = vec4(instance.instance_position - vec2<f32>(4.5), 0.0, 1.0);
     let world_pos = vec4(scaled_position, 0.0, 1.0) + translation;
 
     // Convert to clip space
-    out.clip_position = world_pos * vec4(0.4, 0.4, 0.0, 1.0); // This scales the entire scene, adjust as needed
-    // out.clip_position = world_pos;
+    /*
+    let viewport_width = 20.0; // Example viewport width in world units
+    let instances_per_row = 5.0; // How many instances you want in one row
+    let scale_factor = viewport_width / (instances_per_row * max_coord);
+    */
+    let scaled = world_pos * vec4(0.4, 0.4, 0.0, 1.0);
+    out.clip_position = scaled;
 
     return out;
 }
