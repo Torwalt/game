@@ -28,7 +28,8 @@ pub struct State {
     triangle_mesh: mesh_builder::TriangleMesh,
     quad_mesh: mesh_builder::QuadMesh,
     render_quad: bool,
-    sprite: Sprite,
+    floor_tile: Sprite,
+    wall_tile: Sprite,
     instances: Vec<mesh_builder::TileInstance>,
     camera_buffer: mesh_builder::CameraBuffer,
 }
@@ -52,8 +53,14 @@ impl State {
         let config = Self::create_surface_config(size, surface_caps);
         surface.configure(&device, &config);
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
-        let loaded_img = assets::LoadedImage::from_path(assets_path, "sprites/test4.png").unwrap();
-        let sprite = sprites::Sprite::new(&device, &queue, loaded_img);
+
+        let loaded_floor_tile =
+            assets::LoadedImage::from_path(&assets_path, "sprites/test5.png").unwrap();
+        let floor_tile = sprites::Sprite::new(&device, &queue, loaded_floor_tile);
+
+        let loaded_wall_tile =
+            assets::LoadedImage::from_path(&assets_path, "sprites/test4.png").unwrap();
+        let wall_tile = sprites::Sprite::new(&device, &queue, loaded_wall_tile);
 
         let camera = mesh_builder::Camera::new([0.0, 0.0], size.width as f32, size.height as f32);
         let camera_buffer = mesh_builder::CameraBuffer::new(&camera, &device);
@@ -61,7 +68,10 @@ impl State {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&sprite.bind_group_layout, &camera_buffer.bind_group_layout],
+                bind_group_layouts: &[
+                    &floor_tile.bind_group_layout,
+                    &wall_tile.bind_group_layout,
+                ],
                 push_constant_ranges: &[],
             });
 
@@ -126,7 +136,8 @@ impl State {
             triangle_mesh,
             quad_mesh,
             render_quad: false,
-            sprite,
+            floor_tile,
+            wall_tile,
             instances,
             camera_buffer,
         }
@@ -230,8 +241,8 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.sprite.bind_group, &[]);
-            render_pass.set_bind_group(1, &self.camera_buffer.bind_group, &[]);
+            render_pass.set_bind_group(0, &self.floor_tile.bind_group, &[]);
+            render_pass.set_bind_group(1, &self.wall_tile.bind_group, &[]);
 
             render_pass.set_vertex_buffer(0, self.quad_mesh.buf.slice(..));
             render_pass.set_vertex_buffer(1, self.quad_mesh.instance_buf.slice(..));

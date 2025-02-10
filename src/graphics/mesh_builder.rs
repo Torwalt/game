@@ -32,32 +32,16 @@ const QUAD: [Vertex; 4] = [
     Vertex{ position: [ 0.5,  0.5], color: [0.0, 1.0, 0.0], tex_coord: [1.0, 0.0] },
 ];
 
-pub const QUAD_INDEX: [u32; 6] = [
-    0, 1, 2,
-    3, 2, 0,
-];
+pub const QUAD_INDEX: [u32; 6] = [0, 1, 2, 3, 2, 0];
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct TileInstance {
     position: [f32; 2],
+    texture_index: u32,
 }
 
 impl TileInstance {
-    pub fn to_raw(&self) -> [[f32; 4]; 4] {
-        let mut matrix = [
-            [1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ];
-
-        matrix[3][0] = self.position[0];
-        matrix[3][1] = self.position[1];
-
-        matrix
-    }
-
     pub fn make_batch(num: usize) -> Vec<TileInstance> {
         // Create instance buffer with positions
         let instances = (0..NUM_INSTANCES_PER_ROW)
@@ -70,6 +54,7 @@ impl TileInstance {
 
                     TileInstance {
                         position: [position.x, position.y],
+                        texture_index: 0,
                     }
                 })
             })
@@ -78,18 +63,24 @@ impl TileInstance {
         instances
     }
 
-    pub fn from_tile_map() {
-    }
+    pub fn from_tile_map() {}
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<TileInstance>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &[wgpu::VertexAttribute {
-                shader_location: 3, // Matches shader location
-                offset: 0,
-                format: wgpu::VertexFormat::Float32x2,
-            }],
+            attributes: &[
+                wgpu::VertexAttribute {
+                    shader_location: 3,
+                    offset: 0,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
+                wgpu::VertexAttribute {
+                    shader_location: 4,
+                    offset: std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
+                    format: wgpu::VertexFormat::Uint32,
+                },
+            ],
         }
     }
 }

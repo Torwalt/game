@@ -1,5 +1,6 @@
 struct InstanceInput {
-    @location(3) instance_position: vec2<f32>, // Matches pipeline layout
+    @location(3) instance_position: vec2<f32>,
+    @location(4) texture_index: u32,
 }
 
 struct Vertex {
@@ -11,20 +12,24 @@ struct Vertex {
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) texCoord: vec2<f32>,
+    @location(1) texture_index: u32,
 };
 
 struct CameraUniform {
     view_proj: mat4x4<f32>,
 };
 
-@group(0) @binding(0) var myTexture: texture_2d<f32>;
-@group(0) @binding(1) var mySampler: sampler;
-@group(1) @binding(0) var<uniform> camera: CameraUniform;
+@group(0) @binding(0) var floor_texture: texture_2d<f32>;
+@group(0) @binding(1) var floor_texture_sampler: sampler;
+
+@group(1) @binding(0) var wall_texture: texture_2d<f32>;
+@group(1) @binding(1) var wall_texture_sampler: sampler;
 
 @vertex
 fn vs_main(vertex: Vertex, instance: InstanceInput) -> VertexOutput {
     var out: VertexOutput;
     out.texCoord = vertex.texCoord;
+    out.texture_index = instance.texture_index;
 
     // let scaled_position = vertex.position * 0.4; // Adjust this multiplier to scale
     let scaled_position = vertex.position * 1;
@@ -40,5 +45,10 @@ fn vs_main(vertex: Vertex, instance: InstanceInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(myTexture, mySampler, in.texCoord);
+    if (in.texture_index == 0u) {
+        return textureSample(floor_texture, floor_texture_sampler, in.texCoord);
+    }
+
+    return textureSample(wall_texture, wall_texture_sampler, in.texCoord);
 }
+

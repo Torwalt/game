@@ -16,7 +16,7 @@ pub struct LoadedImage {
 }
 
 impl LoadedImage {
-    pub fn from_path(asset_path: AssetsPath, file_name: &str) -> Result<LoadedImage> {
+    pub fn from_path(asset_path: &AssetsPath, file_name: &str) -> Result<LoadedImage> {
         let full = asset_path.join(file_name);
         let img = image::ImageReader::open(&full)?.decode()?;
         let size = img.dimensions();
