@@ -19,11 +19,19 @@ struct CameraUniform {
     view_proj: mat4x4<f32>,
 };
 
+struct GridUniform {
+    @location(0) dimensions: vec2<f32>
+}
+
 @group(0) @binding(0) var floor_texture: texture_2d<f32>;
 @group(0) @binding(1) var floor_texture_sampler: sampler;
 
 @group(1) @binding(0) var wall_texture: texture_2d<f32>;
 @group(1) @binding(1) var wall_texture_sampler: sampler;
+
+@group(2) @binding(0) var<uniform> camera: CameraUniform;
+
+@group(3) @binding(0) var<uniform> grid: GridUniform;
 
 @vertex
 fn vs_main(vertex: Vertex, instance: InstanceInput) -> VertexOutput {
@@ -31,20 +39,18 @@ fn vs_main(vertex: Vertex, instance: InstanceInput) -> VertexOutput {
     out.texCoord = vertex.texCoord;
     out.texture_index = instance.texture_index;
 
-    let scaled_position = vertex.position * 1;
-    // let max_coord = 10.0; // Assuming this is the maximum coordinate in both x and y for now.
-    // let translation_offset = max_coord / 2.0;
-    let translation = vec4(instance.instance_position - vec2<f32>(4.5), 0.0, 1.0);
-    let world_pos = vec4(scaled_position, 0.0, 1.0) + translation;
+    let grid_center = grid.dimensions / 2.0;
+    let centered_instance_pos = instance.instance_position - grid_center;
 
-    // Convert to clip space
-    /*
-    let viewport_width = 20.0; // Example viewport width in world units
-    let instances_per_row = 5.0; // How many instances you want in one row
-    let scale_factor = viewport_width / (instances_per_row * max_coord);
-    */
-    let scaled = world_pos * vec4(0.4, 0.4, 0.0, 1.0);
-    out.clip_position = scaled;
+    // Create world space position
+    let world_pos = vec4(
+        vertex.position + centered_instance_pos,
+        0.0,
+        1.0
+    );
+
+    // Apply camera transformation
+    out.clip_position = camera.view_proj * world_pos;
 
     return out;
 }

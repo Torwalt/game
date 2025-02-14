@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use pollster::FutureExt;
 use wgpu::{Adapter, Device, PresentMode, Queue, Surface, SurfaceCapabilities};
-use winit::dpi::PhysicalSize;
+use winit::dpi::{self, PhysicalSize};
 use winit::window::Window;
 
 use crate::game::{GameState, TileMap};
@@ -32,6 +32,8 @@ pub struct State {
     wall_tile: Sprite,
     instances: Vec<mesh_builder::TileInstance>,
     camera_buffer: mesh_builder::CameraBuffer,
+    camera: mesh_builder::Camera,
+    grid_uniform_buffer: mesh_builder::GridUniformBuffer,
 }
 
 impl State {
@@ -62,8 +64,13 @@ impl State {
             assets::LoadedImage::from_path(&assets_path, "sprites/test4.png").unwrap();
         let wall_tile = sprites::Sprite::new(&device, &queue, loaded_wall_tile);
 
-        let camera = mesh_builder::Camera::new([0.0, 0.0], size.width as f32, size.height as f32);
+        // This is temporary.
+        let tile_map = TileMap::new(20, 20).unwrap();
+
+        let camera = mesh_builder::Camera::new(size.width as f32, size.height as f32, 25.0);
         let camera_buffer = mesh_builder::CameraBuffer::new(&camera, &device);
+
+        let grid_uniform_buffer = mesh_builder::GridUniformBuffer::from(&tile_map, &device);
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -71,6 +78,8 @@ impl State {
                 bind_group_layouts: &[
                     &floor_tile.bind_group_layout,
                     &wall_tile.bind_group_layout,
+                    &camera_buffer.bind_group_layout,
+                    &grid_uniform_buffer.bind_group_layout,
                 ],
                 push_constant_ranges: &[],
             });
@@ -116,10 +125,7 @@ impl State {
         });
 
         let triangle_mesh = mesh_builder::TriangleMesh::new(&device);
-        // This is temporary.
-        let map = TileMap::default();
-        let instances = mesh_builder::TileInstance::from_tile_map(&map);
-        println!("{:?}", instances);
+        let instances = mesh_builder::TileInstance::from_tile_map(&tile_map);
         let quad_mesh = mesh_builder::QuadMesh::new(&device, &instances);
 
         Self {
@@ -143,6 +149,8 @@ impl State {
             wall_tile,
             instances,
             camera_buffer,
+            camera,
+            grid_uniform_buffer,
         }
     }
 
@@ -202,6 +210,12 @@ impl State {
         })
     }
 
+    pub fn resize(&mut self, new_size: dpi::PhysicalSize<u32>) {
+        self.camera
+            .update_aspect_ratio(new_size.width, new_size.height);
+        self.camera_buffer = mesh_builder::CameraBuffer::new(&self.camera, &self.device);
+    }
+
     pub fn update(&mut self, s: &GameState) -> Result<()> {
         let needs_inversion = (s.inverted() && !self.triangle_mesh.is_inverted())
             || (!s.inverted() && self.triangle_mesh.is_inverted());
@@ -246,6 +260,8 @@ impl State {
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.floor_tile.bind_group, &[]);
             render_pass.set_bind_group(1, &self.wall_tile.bind_group, &[]);
+            render_pass.set_bind_group(2, &self.camera_buffer.bind_group, &[]);
+            render_pass.set_bind_group(3, &self.grid_uniform_buffer.bind_group, &[]);
 
             render_pass.set_vertex_buffer(0, self.quad_mesh.buf.slice(..));
             render_pass.set_vertex_buffer(1, self.quad_mesh.instance_buf.slice(..));

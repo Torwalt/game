@@ -1,5 +1,6 @@
 use std::mem;
 
+use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 
 use crate::game::{self, TileMap};
@@ -44,38 +45,12 @@ pub struct TileInstance {
 }
 
 impl TileInstance {
-    pub fn make_batch(num: usize) -> Vec<TileInstance> {
-        // Create instance buffer with positions
-        let instances = (0..NUM_INSTANCES_PER_ROW)
-            .flat_map(|y| {
-                (0..NUM_INSTANCES_PER_ROW).map(move |x| {
-                    let position = cgmath::Vector2 {
-                        x: x as f32,
-                        y: y as f32,
-                    } - INSTANCE_DISPLACEMENT;
-
-                    TileInstance {
-                        position: [position.x, position.y],
-                        texture_index: 0,
-                    }
-                })
-            })
-            .collect::<Vec<_>>();
-
-        instances
-    }
-
     pub fn from_tile_map(tile_map: &TileMap) -> Vec<TileInstance> {
         tile_map
             .iter()
             .map(|tile| TileInstance {
                 position: [tile.position.0 as f32, tile.position.1 as f32],
                 texture_index: tile.ty as u32,
-                // texture_index: if tile.ty == game::TileType::Floor {
-                //     0
-                // }else {
-                //     1
-                // }
             })
             .collect()
     }
@@ -100,50 +75,86 @@ impl TileInstance {
     }
 }
 
+pub struct GridUniformBuffer {
+    pub bind_group: wgpu::BindGroup,
+    pub bind_group_layout: wgpu::BindGroupLayout,
+}
+
+impl GridUniformBuffer {
+    pub fn from(tile_map: &TileMap, device: &wgpu::Device) -> Self {
+        let dims = tile_map.dimensions();
+        let uniform: [f32; 2] = [dims.0 as f32, dims.1 as f32];
+        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Camera Buffer"),
+            contents: bytemuck::cast_slice(&uniform),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+            label: Some("grid_bind_group_layout"),
+        });
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: buffer.as_entire_binding(),
+            }],
+            label: Some("grid_bind_group"),
+        });
+
+        Self { bind_group, bind_group_layout }
+    }
+}
+
+
+
 pub struct Camera {
     view: cgmath::Matrix4<f32>,
     orthographic: cgmath::Matrix4<f32>,
+    world_width: f32,
 }
 
 impl Camera {
     #[rustfmt::skip]
-    pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.5,
-    0.0, 0.0, 0.0, 1.0,
-);
-
-    pub fn new(position: [f32; 2], width: f32, height: f32) -> Self {
+    pub fn new(width: f32, height: f32, world_width: f32) -> Self {
         println!("width: {} height: {}", width, height);
-        let view = cgmath::Matrix4::from_translation(cgmath::Vector3 {
-            x: -position[0],
-            y: -position[1],
-            z: 0.0,
-        });
 
-        let half_width = width / 2.0;
-        let half_height = height / 2.0;
-        let near = 0.1;
-        let far = 100.0;
+        let view = cgmath::Matrix4::identity();
+        let orthographic = Camera::create_ortho(width, height, world_width);
 
-        // Define the orthographic projection matrix
-        let orthographic = cgmath::ortho(
-            -10.0, // left
-            10.0,  // right
-            -10.0, // bottom
-            10.0,  // top
-            near,  // near
-            far,   // far
-        );
-
-        Self { view, orthographic }
+        Self { orthographic, view, world_width }
     }
 
-    fn uniform(&self) -> [[f32; 4]; 4] {
-        (Camera::OPENGL_TO_WGPU_MATRIX * self.orthographic * self.view).into()
-        // (self.orthographic * self.view * Camera::OPENGL_TO_WGPU_MATRIX).into()
-        // (self.orthographic * self.view ).into()
+    pub fn update_aspect_ratio(&mut self, width: u32, height: u32) {
+        self.orthographic = Camera::create_ortho(width as f32, height as f32, self.world_width);
+    }
+
+    fn create_ortho(width: f32, height: f32, world_width: f32) -> cgmath::Matrix4<f32> {
+        let aspect = width / height;
+        let world_height = world_width / aspect;
+
+        cgmath::ortho(
+            -world_width / 2.0,
+            world_width / 2.0,
+            -world_height / 2.0,
+            world_height / 2.0,
+            -1.0,
+            1.0,
+        )
+    }
+
+    fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
+        self.orthographic * self.view
     }
 }
 
@@ -154,7 +165,8 @@ pub struct CameraBuffer {
 
 impl CameraBuffer {
     pub fn new(camera: &Camera, device: &wgpu::Device) -> Self {
-        let uniform = camera.uniform();
+        let view_proj = camera.build_view_projection_matrix();
+        let uniform: [[f32; 4]; 4] = view_proj.into();
         println!("camera uniform: {:?}", uniform);
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
@@ -282,11 +294,6 @@ fn make_quad_buffers(device: &wgpu::Device, mesh: &[Vertex; 4]) -> (wgpu::Buffer
 }
 
 fn make_instance_buffer(device: &wgpu::Device, instances: &Vec<TileInstance>) -> wgpu::Buffer {
-    // let instance_data = instances
-    //     .iter()
-    //     .map(|instance| instance.to_raw())
-    //     .collect::<Vec<_>>();
-
     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("instance buffer"),
         contents: bytemuck::cast_slice(&instances),

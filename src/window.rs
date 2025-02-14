@@ -80,7 +80,14 @@ impl ApplicationHandler for StateApplication {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
             }
-            WindowEvent::Resized(_size) => {}
+            WindowEvent::Resized(size) => {
+                let state = match &mut self.state {
+                    Some(state) => state,
+                    None => return,
+                };
+
+                state.renderer.resize(size);
+            }
             WindowEvent::RedrawRequested => {
                 state.render().context("when rendering").unwrap();
             }

@@ -10,7 +10,7 @@ mod input;
 // Temp struct.
 pub struct ECS {
     pub game_state: GameState,
-    renderer: graphics::State,
+    pub renderer: graphics::State,
 }
 
 impl ECS {
@@ -130,7 +130,11 @@ impl TileMap {
         TileMap::new(width, height).unwrap()
     }
 
-    fn new(width: usize, height: usize) -> Result<Self> {
+    pub fn dimensions(&self) -> (usize, usize) {
+        (self.width, self.height)
+    }
+
+    pub fn new(width: usize, height: usize) -> Result<Self> {
         if width == 0 || height == 0 {
             bail!("width and height must be larger than 0")
         }
