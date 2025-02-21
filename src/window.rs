@@ -8,7 +8,8 @@ use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowId};
 
 use crate::game::{self, ECS};
-use crate::graphics::State;
+use crate::graphics;
+
 
 pub struct Config {
     max_frame_time: Duration,
@@ -51,7 +52,7 @@ impl ApplicationHandler for StateApplication {
                 .create_window(Window::default_attributes().with_title("Hello!"))
                 .unwrap()
         };
-        let renderer = State::new(window, self.config.assets_path.clone());
+        let renderer = graphics::State::new(window, self.config.assets_path.clone());
 
         match &mut self.state {
             Some(state) => {

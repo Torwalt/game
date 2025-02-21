@@ -7,12 +7,12 @@ use wgpu::{Adapter, Device, PresentMode, Queue, Surface, SurfaceCapabilities};
 use winit::dpi::{self, PhysicalSize};
 use winit::window::Window;
 
-use crate::game::{GameState, TileMap};
+use crate::game::{self, GameState, TileMap};
 
 use self::sprites::Sprite;
 
 pub mod assets;
-mod mesh_builder;
+pub mod mesh_builder;
 mod sprites;
 
 pub struct State {
@@ -25,12 +25,11 @@ pub struct State {
     clear_color: wgpu::Color,
 
     render_pipeline: wgpu::RenderPipeline,
-    triangle_mesh: mesh_builder::TriangleMesh,
     quad_mesh: mesh_builder::QuadMesh,
-    render_quad: bool,
     floor_tile: Sprite,
     wall_tile: Sprite,
-    instances: Vec<mesh_builder::TileInstance>,
+    monster: Sprite,
+    instances: Vec<mesh_builder::Instance>,
     camera_buffer: mesh_builder::CameraBuffer,
     camera: mesh_builder::Camera,
     grid_uniform_buffer: mesh_builder::GridUniformBuffer,
@@ -64,13 +63,18 @@ impl State {
             assets::LoadedImage::from_path(&assets_path, "sprites/test4.png").unwrap();
         let wall_tile = sprites::Sprite::new(&device, &queue, loaded_wall_tile);
 
-        // This is temporary.
+        let loaded_monster =
+            assets::LoadedImage::from_path(&assets_path, "sprites/goblin.png").unwrap();
+        let monster = sprites::Sprite::new(&device, &queue, loaded_monster);
+
         let tile_map = TileMap::new(20, 20).unwrap();
 
         let camera = mesh_builder::Camera::new(size.width as f32, size.height as f32, 25.0);
         let camera_buffer = mesh_builder::CameraBuffer::new(&camera, &device);
 
-        let grid_uniform_buffer = mesh_builder::GridUniformBuffer::from(&tile_map, &device);
+        let dims = tile_map.dimensions();
+        let grid_uniform_buffer =
+            mesh_builder::GridUniformBuffer::from(dims.0 as f32, dims.1 as f32, &device);
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -80,6 +84,7 @@ impl State {
                     &wall_tile.bind_group_layout,
                     &camera_buffer.bind_group_layout,
                     &grid_uniform_buffer.bind_group_layout,
+                    &monster.bind_group_layout,
                 ],
                 push_constant_ranges: &[],
             });
@@ -90,10 +95,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[
-                    mesh_builder::Vertex::desc(),
-                    mesh_builder::TileInstance::desc(),
-                ],
+                buffers: &[mesh_builder::Vertex::desc(), mesh_builder::Instance::desc()],
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -124,8 +126,21 @@ impl State {
             cache: None,
         });
 
-        let triangle_mesh = mesh_builder::TriangleMesh::new(&device);
-        let instances = mesh_builder::TileInstance::from_tile_map(&tile_map);
+        let mut instances = tile_map.to_instances();
+        let monster_instance = game::Monster{
+            texture_id: "".to_string(),
+            monster_state: game::MonsterState::Idling,
+            health: 100,
+            damage: 10,
+            position: [10.0, 10.0],
+        }.to_instance();
+        instances.push(monster_instance);
+
+        instances.sort_by(|a, b| {
+            b.z_order
+                .partial_cmp(&a.z_order)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         let quad_mesh = mesh_builder::QuadMesh::new(&device, &instances);
 
         Self {
@@ -135,18 +150,12 @@ impl State {
             config,
             size,
             window: window_arc,
-            clear_color: wgpu::Color {
-                r: 1.0,
-                g: 0.2,
-                b: 1.3,
-                a: 1.0,
-            },
+            clear_color: wgpu::Color::BLACK,
             render_pipeline,
-            triangle_mesh,
             quad_mesh,
-            render_quad: false,
             floor_tile,
             wall_tile,
+            monster,
             instances,
             camera_buffer,
             camera,
@@ -183,7 +192,10 @@ impl State {
                 &wgpu::DeviceDescriptor {
                     memory_hints: wgpu::MemoryHints::Performance,
                     required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::default(),
+                    required_limits: wgpu::Limits {
+                        max_bind_groups: 5,
+                        ..Default::default()
+                    },
                     label: None,
                 },
                 None,
@@ -253,6 +265,7 @@ impl State {
             render_pass.set_bind_group(1, &self.wall_tile.bind_group, &[]);
             render_pass.set_bind_group(2, &self.camera_buffer.bind_group, &[]);
             render_pass.set_bind_group(3, &self.grid_uniform_buffer.bind_group, &[]);
+            render_pass.set_bind_group(4, &self.monster.bind_group, &[]);
 
             render_pass.set_vertex_buffer(0, self.quad_mesh.buf.slice(..));
             render_pass.set_vertex_buffer(1, self.quad_mesh.instance_buf.slice(..));

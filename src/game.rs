@@ -2,6 +2,7 @@ use anyhow::{bail, Ok, Result};
 use winit::event::{Event, WindowEvent};
 
 use crate::graphics;
+use crate::graphics::mesh_builder::Instance;
 
 use self::input::Input;
 
@@ -84,22 +85,11 @@ pub struct TileMap {
 }
 
 impl TileMap {
-    pub fn iter(&self) -> TileMapIter {
-        TileMapIter {
-            current_idx: 0,
-            tile_map: self,
-        }
-    }
-
     pub fn default() -> Self {
         let width = 10;
         let height = 10;
 
         TileMap::new(width, height).unwrap()
-    }
-
-    pub fn dimensions(&self) -> (usize, usize) {
-        (self.width, self.height)
     }
 
     pub fn new(width: usize, height: usize) -> Result<Self> {
@@ -123,6 +113,32 @@ impl TileMap {
             width,
             height,
         })
+    }
+
+    pub fn to_instances(&self) -> Vec<Instance> {
+        self.iter()
+            .map(|tile| Instance {
+                position: [tile.position.0 as f32, tile.position.1 as f32],
+                z_order: match tile.ty {
+                    TileType::Floor => 0.9,
+                    TileType::Wall => 0.8,
+                },
+                texture_index: tile.ty as u32,
+                entity_type: EntityType::Tile as u32,
+                animation_frame: 0,
+            })
+            .collect()
+    }
+
+    pub fn dimensions(&self) -> (usize, usize) {
+        (self.width, self.height)
+    }
+
+    fn iter(&self) -> TileMapIter {
+        TileMapIter {
+            current_idx: 0,
+            tile_map: self,
+        }
     }
 }
 
@@ -155,6 +171,40 @@ pub struct Tile {
 pub enum TileType {
     Floor,
     Wall,
+}
+
+#[derive(Clone)]
+pub enum EntityType {
+    Tile,
+    Monster,
+}
+
+// This is not ECS style, I will adjust this after exploration phase.
+pub struct Monster {
+    pub texture_id: String,
+    pub monster_state: MonsterState,
+    pub health: u8,
+    pub damage: u8,
+    pub position: [f32; 2],
+}
+
+impl Monster {
+    pub fn to_instance(&self) -> Instance {
+        Instance {
+            position: self.position,
+            texture_index: 0,
+            z_order: 0.8,
+            entity_type: EntityType::Monster as u32,
+            animation_frame: 0,
+        }
+    }
+}
+
+pub enum MonsterState {
+    Idling,
+    Moving,
+    Attacking,
+    Dead,
 }
 
 #[cfg(test)]
