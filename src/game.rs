@@ -33,13 +33,8 @@ impl ECS {
 }
 
 pub struct GameState {
-    entities: Vec<Entity>,
     map: TileMap,
     input: Input,
-
-    // Worst state management ever, let me cook.
-    invert_triangle: bool,
-    render_quad: bool,
     exit: bool,
 }
 
@@ -50,11 +45,8 @@ impl GameState {
 
         Ok(Self {
             input,
-            entities: Vec::new(),
             map,
             exit: false,
-            invert_triangle: false,
-            render_quad: false,
         })
     }
 
@@ -66,32 +58,10 @@ impl GameState {
             self.exit = true;
             return;
         }
-
-        if self
-            .input
-            .is_physical_key_pressed(winit::keyboard::KeyCode::KeyI)
-        {
-            self.invert_triangle = !self.invert_triangle
-        }
-
-        if self
-            .input
-            .is_physical_key_pressed(winit::keyboard::KeyCode::KeyQ)
-        {
-            self.render_quad = !self.render_quad
-        }
     }
 
     pub fn update_keys(&mut self) {
         self.input.update_keys()
-    }
-
-    pub fn inverted(&self) -> bool {
-        self.invert_triangle
-    }
-
-    pub fn render_quad(&self) -> bool {
-        self.render_quad
     }
 
     pub fn input(&mut self, event: &WindowEvent) {
@@ -106,8 +76,6 @@ impl GameState {
         self.exit
     }
 }
-
-type Entity = usize;
 
 pub struct TileMap {
     tiles: Vec<TileType>,

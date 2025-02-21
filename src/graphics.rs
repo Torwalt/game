@@ -217,15 +217,6 @@ impl State {
     }
 
     pub fn update(&mut self, s: &GameState) -> Result<()> {
-        let needs_inversion = (s.inverted() && !self.triangle_mesh.is_inverted())
-            || (!s.inverted() && self.triangle_mesh.is_inverted());
-
-        if needs_inversion {
-            self.triangle_mesh.invert(&self.device)
-        };
-
-        self.render_quad = s.render_quad();
-
         Ok(())
     }
 
