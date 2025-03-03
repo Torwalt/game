@@ -64,15 +64,13 @@ impl State {
         let wall_tile = sprites::Sprite::new(&device, &queue, loaded_wall_tile);
 
         let loaded_monster =
-            assets::LoadedImage::from_path(&assets_path, "sprites/goblin.png").unwrap();
+            assets::LoadedImage::from_path(&assets_path, "sprites/goblin2.png").unwrap();
         let monster = sprites::Sprite::new(&device, &queue, loaded_monster);
-
-        let tile_map = TileMap::new(20, 20).unwrap();
 
         let camera = mesh_builder::Camera::new(size.width as f32, size.height as f32, 25.0);
         let camera_buffer = mesh_builder::CameraBuffer::new(&camera, &device);
 
-        let dims = tile_map.dimensions();
+        let dims = (20, 20);
         let grid_uniform_buffer =
             mesh_builder::GridUniformBuffer::from(dims.0 as f32, dims.1 as f32, &device);
 
@@ -103,7 +101,18 @@ impl State {
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
+                    blend: Some(wgpu::BlendState {
+                        color: wgpu::BlendComponent {
+                            src_factor: wgpu::BlendFactor::SrcAlpha,
+                            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                            operation: wgpu::BlendOperation::Add,
+                        },
+                        alpha: wgpu::BlendComponent {
+                            src_factor: wgpu::BlendFactor::One,
+                            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                            operation: wgpu::BlendOperation::Add,
+                        },
+                    }),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
                 compilation_options: Default::default(),
@@ -126,22 +135,8 @@ impl State {
             cache: None,
         });
 
-        let mut instances = tile_map.to_instances();
-        let monster_instance = game::Monster{
-            texture_id: "".to_string(),
-            monster_state: game::MonsterState::Idling,
-            health: 100,
-            damage: 10,
-            position: [10.0, 10.0],
-        }.to_instance();
-        instances.push(monster_instance);
-
-        instances.sort_by(|a, b| {
-            b.z_order
-                .partial_cmp(&a.z_order)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-        let quad_mesh = mesh_builder::QuadMesh::new(&device, &instances);
+        let empty_instances: Vec<mesh_builder::Instance> = Vec::new();
+        let quad_mesh = mesh_builder::QuadMesh::new(&device, &empty_instances);
 
         Self {
             surface,
@@ -156,7 +151,7 @@ impl State {
             floor_tile,
             wall_tile,
             monster,
-            instances,
+            instances: vec![],
             camera_buffer,
             camera,
             grid_uniform_buffer,
@@ -180,7 +175,7 @@ impl State {
             width: size.width,
             height: size.height,
             present_mode: PresentMode::AutoNoVsync,
-            alpha_mode: capabilities.alpha_modes[0],
+            alpha_mode: wgpu::CompositeAlphaMode::PreMultiplied,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         }
@@ -229,6 +224,11 @@ impl State {
     }
 
     pub fn update(&mut self, s: &GameState) -> Result<()> {
+        let instances: Vec<mesh_builder::Instance> = s.instances();
+        let quad_mesh = mesh_builder::QuadMesh::new(&self.device, &instances);
+        self.quad_mesh = quad_mesh;
+        self.instances = instances;
+
         Ok(())
     }
 

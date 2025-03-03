@@ -1,8 +1,9 @@
 use anyhow::{bail, Ok, Result};
+use rand::prelude::*;
 use winit::event::{Event, WindowEvent};
 
-use crate::graphics;
 use crate::graphics::mesh_builder::Instance;
+use crate::graphics::{self, mesh_builder};
 
 use self::input::Input;
 
@@ -37,6 +38,7 @@ pub struct GameState {
     map: TileMap,
     input: Input,
     exit: bool,
+    monsters: Vec<Monster>,
 }
 
 impl GameState {
@@ -48,6 +50,13 @@ impl GameState {
             input,
             map,
             exit: false,
+            monsters: vec![Monster {
+                texture_id: "".to_string(),
+                monster_state: MonsterState::Idling,
+                health: 100,
+                damage: 10,
+                position: [10.0, 10.0],
+            }],
         })
     }
 
@@ -59,6 +68,8 @@ impl GameState {
             self.exit = true;
             return;
         }
+
+        self.monsters.iter_mut().for_each(|m| m.update_pos())
     }
 
     pub fn update_keys(&mut self) {
@@ -67,6 +78,17 @@ impl GameState {
 
     pub fn input(&mut self, event: &WindowEvent) {
         self.input.process_event(event);
+    }
+
+    pub fn instances(&self) -> Vec<mesh_builder::Instance> {
+        let mut instances = self.map.to_instances();
+        instances.extend(self.monsters.iter().map(|m| m.to_instance()));
+        instances.sort_by(|a, b| {
+            b.z_order
+                .partial_cmp(&a.z_order)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        instances
     }
 
     // NOTE: Right now no user events. When there are such, I can make `Event` generic on my user
@@ -86,8 +108,8 @@ pub struct TileMap {
 
 impl TileMap {
     pub fn default() -> Self {
-        let width = 10;
-        let height = 10;
+        let width = 20;
+        let height = 20;
 
         TileMap::new(width, height).unwrap()
     }
@@ -197,6 +219,13 @@ impl Monster {
             entity_type: EntityType::Monster as u32,
             animation_frame: 0,
         }
+    }
+
+    pub fn update_pos(&mut self) {
+        let mut rng = rand::thread_rng();
+        let dx = rng.gen_range(-0.05..=0.05);
+        let dy = rng.gen_range(-0.05..=0.05);
+        self.position = [self.position[0] + dx, self.position[1] + dy];
     }
 }
 

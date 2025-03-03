@@ -22,7 +22,7 @@ impl Sprite {
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            view_formats: &[wgpu::TextureFormat::Rgba8Unorm],
+            view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
         };
 
         let texture = device.create_texture(&texture_discriptor);
