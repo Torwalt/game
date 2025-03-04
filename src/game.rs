@@ -50,13 +50,7 @@ impl GameState {
             input,
             map,
             exit: false,
-            monsters: vec![Monster {
-                texture_id: "".to_string(),
-                monster_state: MonsterState::Idling,
-                health: 100,
-                damage: 10,
-                position: [10.0, 10.0],
-            }],
+            monsters: vec![Monster::default()],
         })
     }
 
@@ -69,7 +63,14 @@ impl GameState {
             return;
         }
 
-        self.monsters.iter_mut().for_each(|m| m.update_pos())
+        self.monsters.iter_mut().for_each(|m| m.update_pos());
+
+        if self
+            .input
+            .is_physical_key_pressed(winit::keyboard::KeyCode::Digit1)
+        {
+            self.monsters.push(Monster::default())
+        }
     }
 
     pub fn update_keys(&mut self) {
@@ -211,6 +212,16 @@ pub struct Monster {
 }
 
 impl Monster {
+    pub fn default() -> Self {
+        Monster {
+            texture_id: "".to_string(),
+            monster_state: MonsterState::Idling,
+            health: 100,
+            damage: 10,
+            position: [10.0, 10.0],
+        }
+    }
+
     pub fn to_instance(&self) -> Instance {
         Instance {
             position: self.position,
