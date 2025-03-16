@@ -12,6 +12,7 @@ mod window;
 pub async fn run() -> Result<()> {
     let assets_path = graphics::assets::make_assets_path()?;
     let config = Config::new(60, Duration::from_millis(17), assets_path);
+    graphics::sprites::create_animation_from_file(&config.assets_path)?;
 
     let mut app = StateApplication::new(config);
     let event_loop = EventLoop::new()?;

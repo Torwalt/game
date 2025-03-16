@@ -13,7 +13,7 @@ use self::sprites::Sprite;
 
 pub mod assets;
 pub mod mesh_builder;
-mod sprites;
+pub mod sprites;
 
 pub struct State {
     surface: Surface<'static>,
@@ -64,7 +64,7 @@ impl State {
         let wall_tile = sprites::Sprite::new(&device, &queue, loaded_wall_tile);
 
         let loaded_monster =
-            assets::LoadedImage::from_path(&assets_path, "sprites/goblin2.png").unwrap();
+            assets::LoadedImage::from_path(&assets_path, "sprites/goblin-spritemap.png").unwrap();
         let monster = sprites::Sprite::new(&device, &queue, loaded_monster);
 
         let camera = mesh_builder::Camera::new(size.width as f32, size.height as f32, 25.0);

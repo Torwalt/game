@@ -14,7 +14,7 @@ use crate::graphics;
 pub struct Config {
     max_frame_time: Duration,
     target_frame_time: Duration,
-    assets_path: PathBuf,
+    pub assets_path: PathBuf,
 }
 
 impl Config {

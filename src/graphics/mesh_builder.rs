@@ -26,10 +26,13 @@ pub struct Instance {
     pub z_order: f32,
     pub entity_type: u32,
     pub animation_frame: u32,
+    pub frame_pos_offset: [f32; 2],
 }
 
 impl Instance {
-    const ATTRS: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![3 => Float32x2,
+    const ATTRS: [wgpu::VertexAttribute; 6] = wgpu::vertex_attr_array![
+            // position
+            3 => Float32x2,
             // texture_index
             4 => Uint32,
             // z_order
@@ -37,7 +40,9 @@ impl Instance {
             // entity_type
             6 => Uint32,
             // animation_frame
-            7 => Uint32
+            7 => Uint32,
+            // frame_pos_offset
+            8 => Float32x2
     ];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {

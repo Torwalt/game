@@ -4,6 +4,7 @@ struct InstanceInput {
     @location(5) z_order: f32,
     @location(6) entity_type: u32,
     @location(7) animation_frame: u32,
+    @location(8) tex_coord_offset: vec2<f32>,
 }
 
 struct Vertex {
@@ -42,7 +43,7 @@ struct GridUniform {
 @vertex
 fn vs_main(vertex: Vertex, instance: InstanceInput) -> VertexOutput {
     var out: VertexOutput;
-    out.texCoord = vertex.texCoord;
+    out.texCoord = vertex.texCoord * instance.tex_coord_offset;
     out.texture_index = instance.texture_index;
     out.entity_type = instance.entity_type;
 

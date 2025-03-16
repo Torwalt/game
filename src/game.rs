@@ -149,6 +149,7 @@ impl TileMap {
                 texture_index: tile.ty as u32,
                 entity_type: EntityType::Tile as u32,
                 animation_frame: 0,
+                frame_pos_offset: [1.0, 1.0],
             })
             .collect()
     }
@@ -229,6 +230,7 @@ impl Monster {
             z_order: 0.8,
             entity_type: EntityType::Monster as u32,
             animation_frame: 0,
+            frame_pos_offset: [0.1, 0.2],
         }
     }
 

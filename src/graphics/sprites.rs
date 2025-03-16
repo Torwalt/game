@@ -1,4 +1,10 @@
-use super::assets::LoadedImage;
+use image::GenericImageView;
+use std::path;
+
+use crate::game::MonsterState;
+use anyhow::Result;
+
+use super::assets::{AssetsPath, LoadedImage};
 
 pub struct Sprite {
     // Whether this should be on the Sprite or not, I can decide later.
@@ -102,4 +108,27 @@ impl Sprite {
             bind_group_layout,
         }
     }
+}
+
+pub struct AnimationMap {
+    map: std::collections::HashMap<MonsterState, Animation>,
+}
+
+pub struct Animation {
+    frames: Vec<Frame>,
+}
+
+pub struct Frame {
+    tex_coords: Vec<f32>,
+}
+
+pub fn create_animation_from_file(asset_path: &AssetsPath) -> Result<()> {
+    let path = path::Path::new(asset_path)
+        .join("sprites")
+        .join("goblin-spritemap.png");
+    println!("path: {:?}", path);
+    let img = image::ImageReader::open(&path)?.decode()?;
+    println!("img: {:?}", img.dimensions());
+
+    return Ok(());
 }
